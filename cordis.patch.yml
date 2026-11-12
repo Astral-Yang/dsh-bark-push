@@ -15,6 +15,12 @@
         # the state file is mode 0600 and the key never enters this patch).
         deviceKeys: []
         group: DSH
+        soundReply: ''
+        soundApproval: ''
+        soundQuestion: ''
+        levelReply: active
+        levelApproval: timeSensitive
+        levelQuestion: active
         enabled: true
         notifyOnReply: true
         notifyOnApproval: true

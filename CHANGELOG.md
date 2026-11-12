@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 — unreleased
+
+- 回复、审批、选择三类通知各自拥有独立的 `level` 与 `sound` 配置：`levelReply` / `soundReply`、`levelApproval` / `soundApproval`、`levelQuestion` / `soundQuestion`。
+- 管理页按三类分别提供级别与铃声，并把 `active` / `timeSensitive` / `passive` / `critical` 映射为“主动通知 / 时效性通知 / 静默通知 / 紧急通知”，补充设备行为说明。
+- 保留 `levelNormal` / `levelImportant` / `soundNormal` / `soundImportant` 作为旧配置迁移回退，管理页不再编辑这四个字段。
+- 测试：62 / 62 通过。
+
 ## 0.1.2 — unreleased
 
 - 工作区与会话右键菜单的“静音 Bark 通知”增加 bell / bell-off 图标，和会话行、Settings 导航保持一致。

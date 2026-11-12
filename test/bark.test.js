@@ -48,13 +48,42 @@ test('POSTs the expected Bark payload and never logs the device key', async () =
   }
 });
 
-test('uses the important level and sound for approvals', async () => {
+test('uses the per-type level and sound for approvals', async () => {
   const bark = await createBarkServer();
   try {
-    const { client } = clientFor(bark.url, { soundImportant: 'alarm' });
+    const { client } = clientFor(bark.url, { soundApproval: 'alarm' });
     await client.send({ title: '需要批准', body: 'Bash', kind: 'approval' });
     assert.equal(bark.requests[0].body.level, 'timeSensitive');
     assert.equal(bark.requests[0].body.sound, 'alarm');
+  } finally {
+    await bark.close();
+  }
+});
+
+test('reply, approval, and question use independent level and sound profiles', async () => {
+  const bark = await createBarkServer();
+  try {
+    const { client } = clientFor(bark.url, {
+      levelReply: 'passive',
+      soundReply: 'bell',
+      levelApproval: 'critical',
+      soundApproval: 'alarm',
+      levelQuestion: 'timeSensitive',
+      soundQuestion: 'chime',
+    });
+    await client.send({ title: '回复', body: 'r', kind: 'reply' });
+    await client.send({ title: '审批', body: 'a', kind: 'approval' });
+    await client.send({ title: '选择', body: 'q', kind: 'question' });
+    await client.send({ title: '测试', body: 't', kind: 'test' });
+    assert.deepEqual(
+      bark.requests.map((request) => [request.body.level, request.body.sound]),
+      [
+        ['passive', 'bell'],
+        ['critical', 'alarm'],
+        ['timeSensitive', 'chime'],
+        ['passive', 'bell'],
+      ],
+    );
   } finally {
     await bark.close();
   }

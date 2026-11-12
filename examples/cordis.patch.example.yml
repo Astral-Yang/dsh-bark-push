@@ -20,10 +20,12 @@
           - YOUR_BARK_DEVICE_KEY
         group: DSH
         icon: ''
-        soundNormal: ''
-        soundImportant: ''
-        levelNormal: active
-        levelImportant: timeSensitive
+        soundReply: ''
+        soundApproval: ''
+        soundQuestion: ''
+        levelReply: active
+        levelApproval: timeSensitive
+        levelQuestion: active
         notifyOnReply: true
         notifyOnApproval: true
         notifyOnQuestion: true

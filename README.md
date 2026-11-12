@@ -17,8 +17,8 @@
 |---|---|---|
 | Agent 正式回复推送 | ✅ 已实现、已测试 | 监听 `session/event` 的 `assistant/message` + `turn/end`，只在 `completed` 回合推送最后一条可见文本 |
 | 流式输出不重复推送 | ✅ 已实现、已测试 | 不监听 delta；每回合最多一条，按 `sessionId + turn` 去重 |
-| 需要批准推送 | ✅ 已实现、已测试 | 监听 `approval/asked` 审计事件，标题固定 `需要批准`，使用重要级别 |
-| 等待选择推送 | ✅ 已实现、已测试 | 观察 `user-questions/request` waterfall，通知后调用 `next()`，不影响真正的回答 UI |
+| 需要批准推送 | ✅ 已实现、已测试 | 监听 `approval/asked` 审计事件，标题固定 `需要批准`，使用审批独立级别 |
+| 等待选择推送 | ✅ 已实现、已测试 | 观察 `user-questions/request` waterfall，通知后调用 `next()`，不影响真正的回答 UI，使用选择独立级别 |
 | 工作区静音 | ✅ 已实现、已测试 | 工作区右键菜单 / 设置页；按 `WorkspaceId` 持久化 |
 | 对话静音 | ✅ 已实现、已测试 | 会话右键菜单 / 行内铃铛 / 设置页；按 `SessionId` 持久化 |
 | 静音优先级 | ✅ 已实现、已测试 | 工作区静音优先；任一层级静音即禁止推送；发送前重新检查 |
@@ -176,10 +176,12 @@ Settings → **Bark 推送** 提供：
 | `deviceKeys` | `[]` | 一个或多个 Device Key；最多 20 个 |
 | `group` | `DSH` | Bark 通知分组 |
 | `icon` | `''` | 图标 URL，可选 |
-| `soundNormal` | `''` | 回复/选择通知铃声，可选 |
-| `soundImportant` | `''` | 审批通知铃声，可选 |
-| `levelNormal` | `active` | 普通通知级别：`active` / `timeSensitive` / `passive` / `critical` |
-| `levelImportant` | `timeSensitive` | 审批通知级别 |
+| `soundReply` | `''` | 回复通知铃声，可选；留空用 Bark/系统默认 |
+| `soundApproval` | `''` | 审批通知铃声，可选 |
+| `soundQuestion` | `''` | 选择通知铃声，可选 |
+| `levelReply` | `active` | 回复通知级别 |
+| `levelApproval` | `timeSensitive` | 审批通知级别 |
+| `levelQuestion` | `active` | 选择通知级别 |
 | `notifyOnReply` | `true` | Agent 回复 |
 | `notifyOnApproval` | `true` | 需要批准 |
 | `notifyOnQuestion` | `true` | 等待选择 |
@@ -212,6 +214,23 @@ Settings → **Bark 推送** 提供：
 - 日志只输出掩码，例如 `TEST••••90`；错误消息中的 Key 会被替换为 `••••`。
 - 消息正文不会写入日志。
 
+### 4.5 Bark 级别说明
+
+| 级别 | 显示名称 | 设备行为 |
+|---|---|---|
+| `active` | 主动通知 | 默认级别，收到通知时会亮屏提醒。 |
+| `timeSensitive` | 时效性通知 | 优先级较高，可在允许时效性通知的专注模式下显示。 |
+| `passive` | 静默通知 | 仅显示在通知中心，不主动亮屏提醒。 |
+| `critical` | 紧急通知 | 最高优先级，可突破静音模式和专注模式，并发出提示音。需要在 Bark App 里授权「重要警告」；没有授权时会降级成普通通知，推送铃声音量由 `volume` 控制。需要 iOS 15 及以上。 |
+
+当前默认：
+
+- 回复：`active` / 无自定义铃声
+- 审批：`timeSensitive` / 无自定义铃声
+- 选择：`active` / 无自定义铃声
+
+旧版本的 `levelNormal` / `levelImportant` / `soundNormal` / `soundImportant` 仍作为迁移回退读取，但管理页只编辑新的三组独立字段。
+
 ---
 
 ## 5. Bark 配置示例
@@ -223,10 +242,12 @@ server: https://api.day.app
 deviceKeys:
   - YOUR_BARK_DEVICE_KEY
 group: DSH
-soundNormal: bell
-soundImportant: alarm
-levelNormal: active
-levelImportant: timeSensitive
+soundReply: bell
+soundApproval: alarm
+soundQuestion: bell
+levelReply: active
+levelApproval: timeSensitive
+levelQuestion: active
 ```
 
 ### 自建服务器
@@ -332,6 +353,7 @@ POST 需要 `x-dsh-bark-action: 1` 和 `content-type: application/json`，作为
 
 - 标题：默认使用会话标题；可配置为“会话标题 + 回复摘要”或“回复摘要”，按 `maxTitleLength` 截断，可加 `titlePrefix`。
 - 正文：回复全文转纯文本，按 `maxBodyLength` 截断。
+- 级别与铃声由 `levelReply` / `soundReply` 独立控制。
 - 只取 `text` 内容块：不包含 reasoning、工具调用、工具结果、中间状态。
 - 只在 `turn/end` 的 `reason.kind === 'completed'` 时推送；`aborted`、`error`、`blocked`、`max-tokens` 不推送。
 - 同一 `sessionId + turn` 只推一次。
@@ -350,7 +372,7 @@ POST 需要 `x-dsh-bark-action: 1` 和 `content-type: application/json`，作为
 工作区：HelloDeepseek
 ```
 
-- 默认使用 `levelImportant: timeSensitive` 和 `soundImportant`。
+- 默认使用 `levelApproval: timeSensitive` 和 `soundApproval`；只影响审批通知。
 - 点击打开对应会话（`barkFocus=approval` 只是提示，实际没有审批专属路由）。
 
 ### 7.3 等待选择
@@ -359,6 +381,7 @@ POST 需要 `x-dsh-bark-action: 1` 和 `content-type: application/json`，作为
 - 标题固定：`等待选择`
 - 正文：问题、可选项摘要、是否多选、会话标题。
 - 观察者只调用 `next()`，不返回答案；真正的回答仍由 DSH UI 完成。
+- 级别与铃声由 `levelQuestion` / `soundQuestion` 独立控制，默认 `active`。
 - 按 `agent.id + wait.callId` 去重；没有 `callId` 时按问题内容哈希去重。
 
 ### 7.4 文本处理
@@ -396,7 +419,7 @@ cd dsh-bark-push
 npm test
 ```
 
-当前结果：**59 / 59 通过**（Node v24，`node:test`）。
+当前结果：**62 / 62 通过**（Node v24，`node:test`）。
 
 | 验收场景 | 对应测试 |
 |---|---|

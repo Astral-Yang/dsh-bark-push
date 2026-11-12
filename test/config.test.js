@@ -48,16 +48,56 @@ test('clamps numeric fields and falls back for invalid levels', () => {
     timeoutMs: 1,
     maxRetries: 99,
     retryDelayMs: 1,
-    levelNormal: 'shout',
-    levelImportant: 'critical',
+    levelReply: 'shout',
+    levelApproval: 'critical',
+    levelQuestion: 'passive',
   });
   assert.equal(config.maxTitleLength, 200);
   assert.equal(config.maxBodyLength, 32);
   assert.equal(config.timeoutMs, 1000);
   assert.equal(config.maxRetries, 5);
   assert.equal(config.retryDelayMs, 50);
-  assert.equal(config.levelNormal, DEFAULTS.levelNormal);
-  assert.equal(config.levelImportant, 'critical');
+  assert.equal(config.levelReply, DEFAULTS.levelReply);
+  assert.equal(config.levelApproval, 'critical');
+  assert.equal(config.levelQuestion, 'passive');
+});
+
+test('per-type levels and sounds override the legacy two-bucket fields', () => {
+  const legacy = normalizeConfig({
+    levelNormal: 'passive',
+    levelImportant: 'critical',
+    soundNormal: 'bell',
+    soundImportant: 'alarm',
+  }).config;
+  assert.equal(legacy.levelReply, 'passive');
+  assert.equal(legacy.levelQuestion, 'passive');
+  assert.equal(legacy.levelApproval, 'critical');
+  assert.equal(legacy.soundReply, 'bell');
+  assert.equal(legacy.soundQuestion, 'bell');
+  assert.equal(legacy.soundApproval, 'alarm');
+
+  const split = normalizeConfig({
+    levelNormal: 'passive',
+    levelImportant: 'critical',
+    levelReply: 'timeSensitive',
+    soundNormal: 'bell',
+    soundApproval: 'chime',
+  }).config;
+  assert.equal(split.levelReply, 'timeSensitive');
+  assert.equal(split.levelQuestion, 'passive');
+  assert.equal(split.levelApproval, 'critical');
+  assert.equal(split.soundReply, 'bell');
+  assert.equal(split.soundApproval, 'chime');
+  assert.equal(split.soundQuestion, 'bell');
+});
+
+test('publicConfig hides legacy level and sound keys', () => {
+  const view = publicConfig(normalizeConfig({ levelNormal: 'passive', soundNormal: 'bell' }).config);
+  for (const key of ['levelNormal', 'levelImportant', 'soundNormal', 'soundImportant']) {
+    assert.equal(key in view, false);
+  }
+  assert.equal(view.levelReply, 'passive');
+  assert.equal(view.soundReply, 'bell');
 });
 
 test('an explicit empty publicBaseUrl clears the previous value', () => {

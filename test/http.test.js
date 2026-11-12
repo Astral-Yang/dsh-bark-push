@@ -117,6 +117,10 @@ test('serves the management page with a restrictive CSP', async () => {
     const html = await response.text();
     assert.equal(html.includes('/api/bark-push/state'), true);
     assert.equal(html.includes('静音管理'), true);
+    assert.equal(html.includes('主动通知（active）'), true);
+    assert.equal(html.includes('紧急通知（critical）'), true);
+    assert.equal(html.includes('volume'), true);
+    assert.equal(html.includes('id="levelNormal"'), false);
   } finally {
     await cleanup();
   }
