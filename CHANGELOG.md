@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6 — unreleased
+
+- 静音管理的会话条目拆成标题、会话 ID、工作区三行；长 ID 自动换行，消除横向滚动条。
+- 管理页通过 `postMessage` 上报实际内容高度，Settings iframe 自动增高，外层只保留一个垂直滚动条。
+- 测试：63 / 63 通过。
+
 ## 0.1.5 — unreleased
 
 - 新增 `.github/workflows/publish.yml`：通过 npm Trusted Publishing（GitHub OIDC）发布，带 provenance，不再依赖长期 npm token。

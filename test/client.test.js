@@ -24,6 +24,7 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
     useState: (value) => [value, () => {}],
     useReducer: (_reducer, initial) => [initial, () => {}],
     useEffect: () => {},
+    useRef: (value) => ({ current: value }),
     useMemo: (factory) => factory(),
   };
 
