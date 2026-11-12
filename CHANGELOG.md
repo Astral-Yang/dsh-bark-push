@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 — unreleased
+
+- 新增 `.github/workflows/publish.yml`：通过 npm Trusted Publishing（GitHub OIDC）发布，带 provenance，不再依赖长期 npm token。
+- 补齐 npm 包的 `repository` / `homepage` / `bugs` 元数据，便于 npm 页面和 provenance 校验。
+
 ## 0.1.4 — unreleased
 
 - 修复设置页“静音管理”工作区/会话列表为空：catalog 改为从根 Host 上下文读取，并通过 `ctx.get()` 解析 `workspaceRegistry` / `sessions` / `sessionTitle`（Cordis 的 `ctx.get` 不要求 `inject`）。

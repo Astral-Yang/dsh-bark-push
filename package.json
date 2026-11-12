@@ -1,9 +1,20 @@
 {
   "name": "dsh-bark-push",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Bark push notifications for DeepSeek Harness: reply summaries, approval requests, user questions, plus per-workspace and per-session mute.",
   "license": "MIT",
   "author": "Diana <1072486605@qq.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Astral-Yang/dsh-bark-push.git"
+  },
+  "homepage": "https://github.com/Astral-Yang/dsh-bark-push#readme",
+  "bugs": {
+    "url": "https://github.com/Astral-Yang/dsh-bark-push/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "lib/index.js",
   "exports": {
