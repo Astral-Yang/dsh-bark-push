@@ -419,7 +419,7 @@ cd dsh-bark-push
 npm test
 ```
 
-当前结果：**62 / 62 通过**（Node v24，`node:test`）。
+当前结果：**63 / 63 通过**（Node v24，`node:test`）。
 
 | 验收场景 | 对应测试 |
 |---|---|

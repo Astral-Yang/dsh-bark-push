@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 — unreleased
+
+- 修复设置页“静音管理”工作区/会话列表为空：catalog 改为从根 Host 上下文读取，并通过 `ctx.get()` 解析 `workspaceRegistry` / `sessions` / `sessionTitle`（Cordis 的 `ctx.get` 不要求 `inject`）。
+- 测试：63 / 63 通过。
+
 ## 0.1.3 — unreleased
 
 - 回复、审批、选择三类通知各自拥有独立的 `level` 与 `sound` 配置：`levelReply` / `soundReply`、`levelApproval` / `soundApproval`、`levelQuestion` / `soundQuestion`。

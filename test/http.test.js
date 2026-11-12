@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { apply } from '../lib/index.js';
-import { nextConfigOverlay, ROUTES } from '../lib/http.js';
+import { installHttpRoutes, nextConfigOverlay, ROUTES } from '../lib/http.js';
 import { createBarkServer, createFakeCtx, tempDir } from './helpers.js';
 
 const KEY = 'TEST_DEVICE_KEY_1234567890';
@@ -22,6 +22,42 @@ async function invoke(ctx, path, body, headers = {}) {
   });
   return route.fetch(request);
 }
+
+test('state catalog reads services from the root host context, not the connection scope', async () => {
+  const routes = [];
+  const scope = {
+    connection: {
+      fetch: {
+        register(route) {
+          routes.push(route);
+          return async () => {};
+        },
+      },
+    },
+  };
+  const registry = {
+    list: () => [{ id: 'ws-diana', title: 'Diana', path: '/workspace/Diana', sessionIds: [] }],
+    get: () => undefined,
+  };
+  const host = {
+    // Only ctx.get() exposes the service; direct property access is undefined.
+    get: (key) => (key === 'workspaceRegistry' ? registry : undefined),
+  };
+  const runtime = {
+    version: 'test',
+    getConfig: () => ({}),
+    getState: () => ({ mutedWorkspaces: ['ws-diana'], mutedSessions: [], lastTest: null }),
+    warnings: () => [],
+    lastDelivery: () => null,
+  };
+  installHttpRoutes(scope, runtime, host);
+  const route = routes.find((entry) => entry.path === ROUTES.state);
+  const response = await route.fetch(new Request(`http://localhost${ROUTES.state}`));
+  const payload = await response.json();
+  assert.equal(payload.catalog.workspaces.length, 1);
+  assert.equal(payload.catalog.workspaces[0].title, 'Diana');
+  assert.equal(payload.catalog.workspaces[0].muted, true);
+});
 
 test('rejects writes without the same-origin action header', async () => {
   const { dir, cleanup } = await tempDir();
