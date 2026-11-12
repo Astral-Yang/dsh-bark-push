@@ -11,7 +11,7 @@
 
 ---
 
-## 1. 已实现 / 已验证 / 受 DSH API 限制
+## 1. 功能与验证状态
 
 | 能力 | 状态 | 说明 |
 |---|---|---|
@@ -25,8 +25,8 @@
 | 重启后静音仍有效 | ✅ 已实现、已测试 | `$DSH_HOME/bark-push/state.json`，模式 0600，原子写入 |
 | Bark 配置界面 | ✅ 已实现、已验证 | Settings 内嵌管理页，支持 Server、Device Key、Group、Icon、Sound、级别、长度、超时、重试、类型开关 |
 | 测试推送 | ✅ 已实现、已验证 | 设置页按钮；使用本地 Bark 兼容 mock 验证了完整请求载荷 |
-| 点击通知跳转 | ⚠️ 部分实现 | 通过客户端桥接 `?barkSession=<id>` 打开会话；DSH 本身没有可寻址的会话 URL |
-| 通知内直接批准/选择 | ❌ 不实现 | 按需求交互仍由 DSH 负责；Bark 只负责提醒 |
+| 点击通知跳转 | ✅ 已验证 | 通过客户端桥接 `?barkSession=<id>` 打开对应会话；DSH 本身没有可寻址的会话 URL |
+| 通知内直接批准/选择 | — 按设计不提供 | 交互仍由 DSH 负责；Bark 只负责提醒 |
 | 真实 iPhone 送达 | ✅ 已验证 | 已在真实 iPhone + Bark App 上验证通知可送达；Device Key 仅保存在本机 |
 
 ---
@@ -481,7 +481,7 @@ DSH_HOME=/tmp/dsh-bark-smoke dsh --profile web --no-open --port 3999
 
 ---
 
-## 10. DSH API 兼容性与已知限制
+## 10. DSH API 兼容性与设计边界
 
 ### 10.1 已验证环境
 
@@ -492,7 +492,7 @@ DSH_HOME=/tmp/dsh-bark-smoke dsh --profile web --no-open --port 3999
 
 ### 10.2 依赖的公开/半公开契约
 
-| 契约 | 用途 | 风险 |
+| 契约 | 用途 | 说明 |
 |---|---|---|
 | `session/event` 的 `assistant/message`、`turn/end`、`approval/asked` | 回复、审批 | 事件字段是 DSH 公开 SessionEventMap；升级时需复核 |
 | `user-questions/request` waterfall | 选择请求 | 公开 waterfall；只观察不 claim |
@@ -504,19 +504,19 @@ DSH_HOME=/tmp/dsh-bark-smoke dsh --profile web --no-open --port 3999
 | `ctx.uiWorkspace.openSession()` | 深链打开会话 | 客户端服务；没有它时链接只打开首页 |
 | Cordis `ctx.on/effect/inject` | 生命周期 | Cordis 4 公共 API |
 
-### 10.3 受限制的功能
+### 10.3 设计边界与平台约束
 
-1. **没有官方会话 URL**  
-   DSH Web 客户端没有地址栏会话路由。插件用 `?barkSession=<id>` + 客户端桥接调用 `uiWorkspace.openSession()`。如果客户端插件未加载，链接只会打开 DSH 首页。
+1. **会话深链由客户端桥接实现**  
+   DSH Web 客户端没有地址栏会话路由。插件用 `?barkSession=<id>` + 客户端桥接调用 `uiWorkspace.openSession()`；这条桥接是点击通知打开会话所必需的实现路径。
 
 2. **没有审批专属页面**  
    审批卡片在会话对话流内。点击审批通知打开的是对应会话，不是单独的审批页。
 
-3. **静音 UI 依赖客户端 Slot**  
-   Workspace/Session 右键菜单来自 `contextMenus` 服务，会话行铃铛来自 `sidebar.workspaces.session.row.action`。如果未来 DSH 改动这些 Slot，开关会消失，但 Settings 页的静音列表仍然可用（API 也存在）。本版本没有把开关嵌入每个工作区的独立设置页，因为 DSH 没有这样的扩展点。
+3. **静音 UI 通过客户端 Slot 扩展**  
+   Workspace/Session 右键菜单来自 `contextMenus` 服务，会话行铃铛来自 `sidebar.workspaces.session.row.action`；Settings 页的静音列表和管理 API 是独立可用的入口。DSH 没有为每个工作区提供独立的设置页扩展点，因此这些开关放在现有 Slot 和 Settings 页中。
 
-4. **Headless/SDK profile 没有 UI 和 HTTP**  
-   通知仍然工作（`session/event` 与 `user-questions/request` 是 Host 侧的）。但工作区静音没有 UI 可设，且没有 `workspaceRegistry` 时会退化为 `cwd:<path>` 键；此时需要通过编辑 `state.json` 管理。会话静音仍可按 `SessionId` 设置。
+4. **Headless/SDK profile 没有 Web 管理面**  
+   通知仍然工作（`session/event` 与 `user-questions/request` 是 Host 侧的）。工作区静音在无 `workspaceRegistry` 时退化为 `cwd:<path>` 键，可通过编辑 `state.json` 管理；会话静音仍按 `SessionId` 生效。
 
 5. **回复只覆盖正常完成**  
    按需求“Agent 完成一条正式回复”只处理 `completed`。中止、错误、达到 token 上限不推送；如需错误提醒，可在 `events.js` 增加分支并新增开关。
@@ -537,7 +537,7 @@ DSH_HOME=/tmp/dsh-bark-smoke dsh --profile web --no-open --port 3999
     插件不会把 DSH 进程 token 放进 Bark 通知（那会把进程凭据交给 Bark 服务）。手机浏览器需要先登录过该 DSH；否则链接会 401。
 
 11. **标题/正文长度按字符计**  
-    使用 Unicode 码点截断；Bark 服务端仍可能有自己的字节/显示上限。默认值已留出余量。
+    使用 Unicode 码点截断；Bark 服务端以其自身的字节/显示限制为准，默认值已留出余量。
 
 ---
 
@@ -551,7 +551,7 @@ DSH_HOME=/tmp/dsh-bark-smoke dsh --profile web --no-open --port 3999
 | 收不到审批通知 | 会话审批策略是否为 `never`；`approval/asked` 是否产生 |
 | 点击通知只打开首页 | 客户端插件是否加载；浏览器是否已登录；`publicBaseUrl`/advertised URL 是否正确 |
 | 重启后静音丢失 | `$DSH_HOME` 是否变化；`state.json` 是否可写；是否用了不同 profile |
-| 日志出现 `状态文件无法解析` | 损坏文件已移动到 `state.json.corrupt-<timestamp>`；检查后重新配置 |
+| 日志出现 `状态文件解析失败` | 损坏文件已移动到 `state.json.corrupt-<timestamp>`；检查后重新配置 |
 
 日志中不会出现完整 Device Key 或消息正文。需要诊断时打开 `trace` 只会增加生命周期/投递结果日志，不会记录内容。
 
