@@ -12,7 +12,8 @@ const root = join(import.meta.dirname, '..');
 const host = await import(join(root, 'lib', 'index.js'));
 assert.equal(host.name, 'dsh-bark-push');
 assert.equal(typeof host.apply, 'function');
-assert.equal(host.VERSION, '0.1.0');
+const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+assert.equal(host.VERSION, pkg.version);
 
 const client = await readFile(join(root, 'lib', 'client.js'), 'utf8');
 assert.equal(client.includes('window.__ModuleLoader__.load'), true);

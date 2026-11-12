@@ -136,10 +136,22 @@ test('registers the Settings section and the Session row mute action', async () 
   assert.equal(names.includes('sidebar.workspaces.session.row.action'), true);
   const section = bundle.registrations.find((entry) => entry.options?.name === 'settings.section');
   assert.equal(section.options.id, 'bark-push');
+  const navIcon = bundle.registrations.find((entry) => entry.options?.name === 'settings.section.icon');
+  assert.equal(navIcon.options.id, 'bark-push');
   const element = section.component({});
   assert.equal(element.type, 'div');
   const iframe = element.children.find((child) => child && child.type === 'iframe');
   assert.equal(iframe.props.src, '/api/bark-push/ui?embed=1');
+  assert.equal(element.children.some((child) => child && child.type === 'a'), false);
+});
+
+test('bundles both bell glyphs for the mute control', async () => {
+  const bundle = await loadClient();
+  const glyphs = bundle.exports.__internals.BELL_PATHS;
+  assert.equal(Array.isArray(glyphs.bell), true);
+  assert.equal(Array.isArray(glyphs.bellOff), true);
+  assert.equal(glyphs.bell.length >= 2, true);
+  assert.equal(glyphs.bellOff.length >= 3, true);
 });
 
 test('registers native session and workspace context menus', async () => {

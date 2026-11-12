@@ -396,7 +396,7 @@ cd dsh-bark-push
 npm test
 ```
 
-当前结果：**58 / 58 通过**（Node v24，`node:test`）。
+当前结果：**59 / 59 通过**（Node v24，`node:test`）。
 
 | 验收场景 | 对应测试 |
 |---|---|
@@ -577,6 +577,10 @@ dsh-bark-push/
 
 ---
 
-## 13. License
+## 13. 变更记录
+
+见 [CHANGELOG.md](CHANGELOG.md)。
+
+## 14. License
 
 MIT. See [LICENSE](LICENSE).
