@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — unreleased
+
+- 工作区与会话右键菜单的“静音 Bark 通知”增加 bell / bell-off 图标，和会话行、Settings 导航保持一致。
+
 ## 0.1.1 — 2026-11-12
 
 - 会话行静音按钮改用内置的 bell / bell-off SVG 图标，跟随宿主主题的 `currentColor`。

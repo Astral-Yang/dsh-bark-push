@@ -1,6 +1,6 @@
 {
   "name": "dsh-bark-push",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bark push notifications for DeepSeek Harness: reply summaries, approval requests, user questions, plus per-workspace and per-session mute.",
   "license": "MIT",
   "author": "Diana <1072486605@qq.com>",

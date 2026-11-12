@@ -106,6 +106,12 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
     slots: {
       inject: (name, factory) => {
         const registration = factory();
+        if (registration && typeof registration[Symbol.iterator] === 'function' && typeof registration.next === 'function') {
+          const values = [];
+          for (const value of registration) values.push(value);
+          registrations.push({ name, registration: values });
+          return () => {};
+        }
         registrations.push({ name, registration });
         return registration;
       },
@@ -164,8 +170,14 @@ test('registers native session and workspace context menus', async () => {
   const sessionItems = sessionMenu.resolve({ sessionId: 's1' });
   assert.equal(sessionItems.length, 1);
   assert.equal(sessionItems[0].label, '取消静音 Bark 通知');
+  assert.equal(sessionItems[0].icon.key, 'bark-push.bell-off');
   const workspaceItems = workspaceMenu.resolve({ workspaceId: 'ws-1' });
   assert.equal(workspaceItems[0].label, '取消静音 Bark 通知');
+  assert.equal(workspaceItems[0].icon.key, 'bark-push.bell-off');
+  const iconKeys = bundle.registrations
+    .filter((entry) => entry.options?.name === 'contextMenu.icon')
+    .map((entry) => entry.options.key);
+  assert.deepEqual(iconKeys.sort(), ['bark-push.bell', 'bark-push.bell-off']);
 });
 
 test('opens a Session from ?barkSession and removes the parameter', async () => {
