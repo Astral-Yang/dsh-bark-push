@@ -1,0 +1,61 @@
+{
+  "name": "dsh-bark-push",
+  "version": "0.1.0",
+  "description": "Bark push notifications for DeepSeek Harness: reply summaries, approval requests, user questions, plus per-workspace and per-session mute.",
+  "license": "MIT",
+  "author": "Diana <1072486605@qq.com>",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/*.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "docs",
+    "examples",
+    "scripts"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "bark",
+    "push-notification",
+    "ios",
+    "approval",
+    "notification"
+  ],
+  "engines": {
+    "node": ">=20.11",
+    "dsh": ">=0.2.2-rc.1 <0.3.0-0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.2-rc.1": "compatible"
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:smoke": "node scripts/smoke-load.mjs"
+  }
+}

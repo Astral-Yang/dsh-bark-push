@@ -1,0 +1,41 @@
+# Example: add dsh-bark-push to a profile's own cordis.patch.yml.
+#
+# 1. Install the package into the profile:
+#      dsh plugin --profile web add link:/workspace/HelloDeepseek/dsh-bark-push
+# 2. Append this row (or add the package to dsh.profile.bundles and skip it).
+# 3. Reload the profile / restart DSH.
+#
+# The row's `config` REPLACES the bundle row's config wholesale, so this example
+# repeats every field it wants to keep. Omitted fields fall back to the plugin
+# defaults, not to the bundle row.
+- insert:
+    - id: bark-push
+      name: dsh-bark-push
+      config:
+        enabled: true
+        server: https://api.day.app
+        # Prefer the Settings page for keys: it writes them to
+        # $DSH_HOME/bark-push/state.json (mode 0600) instead of this patch.
+        deviceKeys:
+          - YOUR_BARK_DEVICE_KEY
+        group: DSH
+        icon: ''
+        soundNormal: ''
+        soundImportant: ''
+        levelNormal: active
+        levelImportant: timeSensitive
+        notifyOnReply: true
+        notifyOnApproval: true
+        notifyOnQuestion: true
+        includeSubagents: false
+        titlePrefix: ''
+        titleMode: session
+        maxTitleLength: 64
+        maxBodyLength: 1200
+        timeoutMs: 8000
+        maxRetries: 2
+        retryDelayMs: 500
+        linkToSession: true
+        # Leave empty to use ctx.webApp.getAdvertisedUrl() (recommended).
+        publicBaseUrl: ''
+        trace: false

@@ -1,0 +1,31 @@
+# dsh-bark-push bundle layer.
+#
+# A profile that lists this package in `dsh.profile.bundles` gets this one
+# loader entry. Every field is optional; package defaults fill anything omitted
+# here. Values in the profile's own cordis.patch.yml override this row wholesale
+# (the loader assigns `config`, it does not deep-merge), so either keep a full
+# row there or use the Settings page, which writes to the plugin's state file.
+- insert:
+    - id: bark-push
+      name: dsh-bark-push
+      config:
+        # Bark server root (official https://api.day.app or a self-hosted root).
+        server: https://api.day.app
+        # Device keys may also be added from the Settings page (recommended:
+        # the state file is mode 0600 and the key never enters this patch).
+        deviceKeys: []
+        group: DSH
+        enabled: true
+        notifyOnReply: true
+        notifyOnApproval: true
+        notifyOnQuestion: true
+        includeSubagents: false
+        titlePrefix: ''
+        titleMode: session
+        maxTitleLength: 64
+        maxBodyLength: 1200
+        timeoutMs: 8000
+        maxRetries: 2
+        retryDelayMs: 500
+        linkToSession: true
+        publicBaseUrl: ''
