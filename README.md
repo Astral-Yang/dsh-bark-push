@@ -7,7 +7,7 @@
 - 通知发送完全异步：Bark 故障不会阻塞对话、工具调用或审批流程。
 - 配置页、测试推送、静音管理都在 DSH 的 **Settings → Bark 推送** 中完成。
 
-![Bark 推送设置页（使用本地 mock Bark Server 验证）](docs/settings.png)
+![Bark 推送设置页（0.1.1，使用本地 mock Bark Server 验证）](docs/settings-0.1.1.png)
 
 ---
 
