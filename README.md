@@ -27,7 +27,7 @@
 | 测试推送 | ✅ 已实现、已验证 | 设置页按钮；使用本地 Bark 兼容 mock 验证了完整请求载荷 |
 | 点击通知跳转 | ⚠️ 部分实现 | 通过客户端桥接 `?barkSession=<id>` 打开会话；DSH 本身没有可寻址的会话 URL |
 | 通知内直接批准/选择 | ❌ 不实现 | 按需求交互仍由 DSH 负责；Bark 只负责提醒 |
-| 真实 iPhone 送达 | ⚠️ 未验证 | 没有使用用户的真实 Device Key；需要用户在设置页填写自己的 Bark Key 后点“测试推送” |
+| 真实 iPhone 送达 | ✅ 已验证 | 已在真实 iPhone + Bark App 上验证通知可送达；Device Key 仅保存在本机 |
 
 ---
 
@@ -464,8 +464,9 @@ DSH_HOME=/tmp/dsh-bark-smoke dsh --profile web --no-open --port 3999
 ```
 
 - 浏览器控制台无错误。
+- 真实设备：用户已在 iPhone 的 Bark App 中验证通知可送达。
 
-> 说明：此次验证使用本地 mock Bark，没有使用任何真实 iPhone Device Key，也没有复用其他插件的 Bark 配置。真实送达请在设置页填入自己的 Key 后点击“测试推送”。
+> 说明：自动化测试使用本地 mock Bark，避免依赖真实设备；真实 iPhone 送达已由用户在 Bark App 上验证。Device Key 仅在用户本机配置，未写入仓库。
 
 ### 9.3 手工验收步骤
 
