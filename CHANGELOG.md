@@ -3,6 +3,7 @@
 ## 0.1.2 — unreleased
 
 - 工作区与会话右键菜单的“静音 Bark 通知”增加 bell / bell-off 图标，和会话行、Settings 导航保持一致。
+- 修复会话行悬浮按钮未显示的问题：slot 组件从注入 props 读取 locale seat，并补了组件渲染测试。
 
 ## 0.1.1 — 2026-11-12
 

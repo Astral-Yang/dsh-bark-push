@@ -142,6 +142,11 @@ test('registers the Settings section and the Session row mute action', async () 
   assert.equal(names.includes('sidebar.workspaces.session.row.action'), true);
   const section = bundle.registrations.find((entry) => entry.options?.name === 'settings.section');
   assert.equal(section.options.id, 'bark-push');
+  const rowAction = bundle.registrations.find((entry) => entry.options?.name === 'sidebar.workspaces.session.row.action');
+  const button = rowAction.component({ sessionId: 's1', t: (key) => key });
+  assert.equal(button.type, 'button');
+  assert.equal(button.props['aria-label'], 'unmute');
+  assert.equal(button.children[0].props.off, true);
   const navIcon = bundle.registrations.find((entry) => entry.options?.name === 'settings.section.icon');
   assert.equal(navIcon.options.id, 'bark-push');
   const element = section.component({});
