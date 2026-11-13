@@ -200,3 +200,17 @@ test('adopts mute state into the shared cache', async () => {
   assert.equal(internals.store.workspaces.has('a'), true);
   assert.equal(internals.store.sessions.has('b'), true);
 });
+
+test('registers the frame-wide toast overlay and exposes the toast store', async () => {
+  const bundle = await loadClient();
+  const overlay = bundle.registrations.find((entry) => entry.options && entry.options.name === 'shell.overlay');
+  assert.ok(overlay, 'shell.overlay entry registered');
+  assert.equal(overlay.options.id, 'dsh-bark-push.toast');
+  assert.equal(typeof overlay.component, 'function');
+  const toastStore = bundle.exports.__internals.toastStore;
+  toastStore.show('渠道测试失败：HTTP 500', 'bad');
+  assert.equal(toastStore.get().message, '渠道测试失败：HTTP 500');
+  assert.equal(toastStore.get().kind, 'bad');
+  toastStore.dismiss();
+  assert.equal(toastStore.get(), null);
+});

@@ -195,3 +195,32 @@ test('a throwing Bark client never escapes the queue', async () => {
     await cleanup();
   }
 });
+
+test('the default test push only exercises Bark, never the extra channels', async () => {
+  const { dir, cleanup } = await tempDir();
+  const state = new StateStore({ file: join(dir, 'state.json'), logger: createLogger() });
+  state.loadSync();
+  const config = normalizeConfig({
+    deviceKeys: ['k'],
+    channels: [{ id: 'ch_a', type: 'gotify', config: { server: 'https://g', token: 't', priority: '5' } }],
+  }).config;
+  const barkCalls = [];
+  const channelCalls = [];
+  const bark = { async send(note) { barkCalls.push(note); return { ok: true, results: [{ maskedKey: 'k••••', ok: true, status: 200, attempts: 1 }] }; } };
+  const channels = {
+    hasEnabled: () => true,
+    async send(note) { channelCalls.push(note); return { ok: true, results: [{ channelId: 'ch_a', channelType: 'gotify', label: 'g', ok: true }] }; },
+  };
+  const ctx = createFakeCtx({});
+  const queue = new SerialQueue({ concurrency: 1, limit: 20, logger: ctx.logger });
+  const notifier = new Notifier({ ctx, getConfig: () => config, state, bark, channels, queue, logger: ctx.logger, version: 'test' });
+  try {
+    const result = await notifier.test();
+    assert.equal(barkCalls.length, 1);
+    assert.equal(channelCalls.length, 0);
+    assert.equal(result.ok, true);
+  } finally {
+    queue.dispose();
+    await cleanup();
+  }
+});

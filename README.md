@@ -1,10 +1,10 @@
 # dsh-bark-push
 
-把 **DeepSeek Harness（DSH）** 的回复、审批请求和用户选择请求推送到 iPhone 的 Bark 插件。
+把 **DeepSeek Harness（DSH）** 的回复、审批请求和用户选择请求推送到手机：默认使用 iPhone 的 **Bark**，并可同时启用 Gotify、ntfy、PushDeer、Server酱、PushPlus、额外 Bark 服务器或**自定义 Webhook**。
 
 - 不修改 DSH 核心代码，只使用 DSH 的事件、服务、HTTP 路由和客户端 Slot。
 - 支持工作区级、对话级两层静音，状态持久化。
-- 通知发送完全异步：Bark 故障不会阻塞对话、工具调用或审批流程。
+- 通知发送完全异步：任一渠道故障不会阻塞对话、工具调用或审批流程。
 - 配置页、测试推送、静音管理都在 DSH 的 **Settings → Bark 推送** 中完成。
 
 ![Bark 推送设置页（0.1.1，使用本地 mock Bark Server 验证）](docs/settings-0.1.1.png)
@@ -25,6 +25,7 @@
 | 重启后静音仍有效 | ✅ 已实现、已测试 | `$DSH_HOME/bark-push/state.json`，模式 0600，原子写入 |
 | Bark 配置界面 | ✅ 已实现、已验证 | Settings 内嵌管理页，支持 Server、Device Key、Group、Icon、Sound、级别、长度、超时、重试、类型开关 |
 | 测试推送 | ✅ 已实现、已验证 | 设置页按钮；使用本地 Bark 兼容 mock 验证了完整请求载荷 |
+| 更多推送渠道 | ✅ 已实现、已测试 | Gotify、ntfy、PushDeer、Server酱、PushPlus、额外 Bark、自定义 Webhook；与 Bark 并列，任一渠道失败互不影响 |
 | 点击通知跳转 | ✅ 已验证 | 通过客户端桥接 `?barkSession=<id>` 打开对应会话；DSH 本身没有可寻址的会话 URL |
 | 通知内直接批准/选择 | — 按设计不提供 | 交互仍由 DSH 负责；Bark 只负责提醒 |
 | 真实 iPhone 送达 | ✅ 已验证 | 已在真实 iPhone + Bark App 上验证通知可送达；Device Key 仅保存在本机 |
@@ -159,9 +160,10 @@ Settings → **Bark 推送** 提供：
 - 普通级别 / 重要级别
 - 总开关、回复 / 批准 / 选择 / 子代理开关
 - 回复标题来源、标题前缀、标题最大长度、正文最大长度
-- 请求超时、最大重试次数、重试间隔
+- 请求超时、最大重试次数、重试间隔（以上分组/级别/铃声/标题/长度/超时/跳转等低使用率项收在「连接与通知」卡内可折叠的「高级选项」中，默认折叠以保持简洁）
 - 点击通知打开会话
 - 公共访问地址（可选）
+- **更多推送渠道**：逐个添加、启用/停用、单独测试 Gotify / ntfy / PushDeer / Server酱 / PushPlus / 额外 Bark / 自定义 Webhook
 - **测试推送**
 - 工作区/会话静音管理
 
@@ -174,6 +176,7 @@ Settings → **Bark 推送** 提供：
 | `enabled` | `true` | 总开关 |
 | `server` | `https://api.day.app` | Bark Server 根地址；可带子路径，末尾 `/push` 会被归一化 |
 | `deviceKeys` | `[]` | 一个或多个 Device Key；最多 20 个 |
+| `channels` | `[]` | 额外推送渠道数组；见 4.6。每个元素为 `{ id, type, label, enabled, config }`，最多 20 个 |
 | `group` | `DSH` | Bark 通知分组 |
 | `icon` | `''` | 图标 URL，可选 |
 | `soundReply` | `''` | 回复通知铃声，可选；留空用 Bark/系统默认 |
@@ -210,6 +213,7 @@ Settings → **Bark 推送** 提供：
 ### 4.4 敏感信息
 
 - Device Key 优先通过 Settings 页面填写，写入 `state.json`（`0600`）。
+- 额外渠道的 Token / Key / Webhook 地址等敏感字段同样只写入 `state.json`（`0600`），API 与页面只回传“已设置”。
 - 如果写在 `cordis.patch.yml`，该文件通常对整个 profile 可读；这是部署方的选择。
 - 日志只输出掩码，例如 `TEST••••90`；错误消息中的 Key 会被替换为 `••••`。
 - 消息正文不会写入日志。
@@ -230,6 +234,53 @@ Settings → **Bark 推送** 提供：
 - 选择：`active` / 无自定义铃声
 
 旧版本的 `levelNormal` / `levelImportant` / `soundNormal` / `soundImportant` 仍作为迁移回退读取，但管理页只编辑新的三组独立字段。
+
+### 4.6 更多推送渠道
+
+Bark 是内置的第一渠道（仍用上面的 `server` / `deviceKeys` 配置）。除此之外，可以在设置页「更多推送渠道」中添加任意数量的额外渠道，每条通知会**同时**投递到 Bark 和所有已启用且已填写完整的渠道。每个渠道独立开关、独立超时与重试；某个渠道失败只影响它自己，不会阻断其他渠道或 DSH 本身。
+
+支持的渠道类型：
+
+| 类型 `type` | 名称 | 必要参数 | 可选参数 |
+|---|---|---|---|
+| `gotify` | Gotify（自建） | `server`、`token` | `priority`（0–10，默认 5） |
+| `ntfy` | ntfy | `topic` | `server`（默认 `https://ntfy.sh`）、`token`（Bearer） |
+| `pushdeer` | PushDeer | `pushKey` | `server`（默认 `https://api2.pushdeer.com`） |
+| `serverchan` | Server酱³ | `sendKey` | — |
+| `pushplus` | PushPlus | `token` | — |
+| `bark` | 额外 Bark 服务器 | `deviceKey` | `server`（默认 `https://api.day.app`）、`group`、`level` |
+| `webhook` | 自定义 Webhook | `url` | `method`（POST/PUT/GET）、`contentType`、`headers`、`bodyTemplate` |
+
+**自定义 Webhook 模板**占位符：`{{title}}`、`{{body}}`、`{{kind}}`、`{{url}}`。默认请求体为 `{"title":"{{title}}","body":"{{body}}","kind":"{{kind}}","url":"{{url}}"}`；`headers` 接受 JSON 对象字符串（如 `{"Authorization":"Bearer …"}`）。返回 2xx 视为成功。
+
+**密钥与隐私**：所有 Token、Key、Webhook 地址等敏感字段只保存在 `state.json`（`0600`），管理页与 `/api` 返回中只显示“已设置”，不会回传明文。编辑时敏感字段留空表示**保持原值**；要清除请删除该渠道或重新填写。
+
+**逐渠道测试**：每个渠道卡片上的「测试」按钮会先保存当前配置，再只对该渠道发一条测试通知，结果**就地显示在该渠道卡片内**，便于逐个确认参数是否正确。Bark 卡片里的「测试推送」**只测试内置的 Bark（默认渠道）**，按设备逐条列出成功/失败，不会把额外渠道一起发一遍；要测某个额外渠道就点它卡片上的「测试」。
+
+**保存反馈**：Bark 卡与「更多推送渠道」卡各自的「保存配置」按钮在保存后会**就地显示**「已保存 HH:MM:SS」或「保存失败：…」，无需滚动或依赖 toast 也能确认结果；渠道有增删改未保存时会提示「有未保存的更改」。此外所有操作仍会触发宿主浮层 toast。
+
+**反馈与布局**：管理页以 iframe 嵌入 Settings，宿主会把 iframe 撑到内容全高，因此页面内的「固定底部 toast」会落在整页最底部而不可见。所以所有操作提示改由客户端半通过 `shell.overlay`（DSH 官方的框架级浮层座位，位于顶层文档、盖在所有列之上）渲染，滚到哪都可见；测试结果则就近显示在触发它的卡片里。页面顶部只保留一条轻量状态条（启用状态 / 设备数 / 渠道数 / 上次结果）。
+
+Loader / profile 也可以用 YAML 预置渠道，例如：
+
+```yaml
+channels:
+  - id: ch_gotify_home
+    type: gotify
+    label: 家里的 Gotify
+    enabled: true
+    config:
+      server: https://gotify.example.com
+      token: Axxxxxxxx
+      priority: "5"
+  - id: ch_hook_ci
+    type: webhook
+    enabled: true
+    config:
+      url: https://example.com/dsh-hook
+      method: POST
+      contentType: application/json
+```
 
 ---
 
@@ -341,7 +392,8 @@ curl -X POST 'https://api.day.app/push' \
 | `POST` | `/api/bark-push/config` | 保存配置；支持 `addDeviceKeys`、`deviceKeys`、`clearDeviceKeys`、`reset` |
 | `POST` | `/api/bark-push/mute` | `{kind:'workspace'|'session', id, muted}` |
 | `POST` | `/api/bark-push/toggle` | `{kind, id}` 原子切换 |
-| `POST` | `/api/bark-push/test` | 测试推送 |
+| `POST` | `/api/bark-push/test` | 测试推送（Bark + 所有已启用渠道） |
+| `POST` | `/api/bark-push/test-channel` | `{id}` 只测试一个额外渠道 |
 
 POST 需要 `x-dsh-bark-action: 1` 和 `content-type: application/json`，作为 DSH Host/Origin 检查之外的第二道同源栅栏。
 
@@ -419,7 +471,7 @@ cd dsh-bark-push
 npm test
 ```
 
-当前结果：**63 / 63 通过**（Node v24，`node:test`）。
+当前结果：**77 / 77 通过**（Node v24，`node:test`）。
 
 | 验收场景 | 对应测试 |
 |---|---|
@@ -433,6 +485,7 @@ npm test
 | Bark 故障不影响 Agent | `notifier.test.js`、`integration.test.js` |
 | Device Key 不出现在日志/API | `bark.test.js`、`config.test.js`、`integration.test.js` |
 | 重试与 4xx 行为 | `bark.test.js` |
+| 更多渠道请求构造、密钥掩码、逐渠道测试 | `channels.test.js` |
 | 客户端 Settings/菜单/深链注册 | `client.test.js` |
 
 ### 9.2 真实 DSH 启动验证
@@ -574,6 +627,7 @@ dsh-bark-push/
 │   ├── events.js              # session/event + user-questions waterfall
 │   ├── notifier.js            # 静音、去重、异步投递、测试
 │   ├── bark.js                # Bark POST /push 客户端 + 重试
+│   ├── channels.js            # 更多渠道注册表 + 通用发送器
 │   ├── format.js              # Markdown→纯文本、摘要、三种通知
 │   ├── config.js              # 归一化、掩码、endpoint
 │   ├── state.js               # state.json 原子持久化
@@ -591,6 +645,7 @@ dsh-bark-push/
     ├── format.test.js
     ├── state.test.js
     ├── bark.test.js
+    ├── channels.test.js
     ├── events.test.js
     ├── notifier.test.js
     ├── http.test.js

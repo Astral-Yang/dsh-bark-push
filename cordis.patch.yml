@@ -14,6 +14,12 @@
         # Device keys may also be added from the Settings page (recommended:
         # the state file is mode 0600 and the key never enters this patch).
         deviceKeys: []
+        # Extra delivery channels beyond Bark. Each item is
+        #   { id, type, label, enabled, config: {...} }
+        # where type is one of: gotify | ntfy | pushdeer | serverchan |
+        # pushplus | bark | webhook. Prefer adding them from the Settings page,
+        # which keeps their tokens in the 0600 state file instead of this patch.
+        channels: []
         group: DSH
         soundReply: ''
         soundApproval: ''
