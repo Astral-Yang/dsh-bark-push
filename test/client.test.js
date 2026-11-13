@@ -175,10 +175,10 @@ test('registers native session and workspace context menus', async () => {
   assert.ok(workspaceMenu);
   const sessionItems = sessionMenu.resolve({ sessionId: 's1' });
   assert.equal(sessionItems.length, 1);
-  assert.equal(sessionItems[0].label, '取消静音 Bark 通知');
+  assert.equal(sessionItems[0].label, '取消静音推送通知');
   assert.equal(sessionItems[0].icon.key, 'bark-push.bell-off');
   const workspaceItems = workspaceMenu.resolve({ workspaceId: 'ws-1' });
-  assert.equal(workspaceItems[0].label, '取消静音 Bark 通知');
+  assert.equal(workspaceItems[0].label, '取消静音推送通知');
   assert.equal(workspaceItems[0].icon.key, 'bark-push.bell-off');
   const iconKeys = bundle.registrations
     .filter((entry) => entry.options?.name === 'contextMenu.icon')
