@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-11-13
 
 - 新增「更多推送渠道」：在 Bark 之外可同时启用 Gotify、ntfy、PushDeer、Server酱、PushPlus、额外 Bark 服务器与自定义 Webhook。每条通知并行投递到 Bark 和所有已启用渠道，渠道之间互相隔离，单个渠道失败不影响其他渠道或 DSH。
 - 新增 `lib/channels.js`：数据驱动的渠道注册表 + 通用发送器（复用超时、指数退避重试、错误隔离）。新增渠道类型只需增加一条描述符。
