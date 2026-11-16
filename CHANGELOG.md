@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.1 — 2026-11-17
+
+- 静音入口重排，避免与其它通知插件争抢会话行尾的 hover 按钮条：
+  - 移除 `sidebar.workspaces.session.row.action` 的铃铛；会话静音改由 `sidebar.workspaces.session.menu.item` slot 承担（见下），行「…」菜单与右键菜单共用，不会重复。
+  - 新增 `sidebar.session.row.trailing` 的**不可点**小铃铛标记，仅在该会话被静音时显示，保留状态可见性。
+  - 新增 `conversation.session.header.utilities` 的当前会话头部铃铛，提供一键静音/取消静音。
+- 会话菜单项改用 `sidebar.workspaces.session.menu.item` slot，`order: 510`：该 slot 同时渲染进行「…」菜单与右键菜单，且整体位于内置「归档会话」之前，因此稳定排在其它插件项之后、归档之前；不再使用会受其它插件 order 影响的 `contextMenus` 注入。
+- 会话菜单项优先渲染宿主原语 `@deepseek-ai/dsh-client-ui-primitives` 的 `MenuItemButton`，样式/间距/hover 完全跟随宿主；仅当宿主未注入该原语时回退到本地 `bark-menuItem` 样式。
+- 会话菜单项样式按宿主菜单行对齐：`bark-menuItem` 使用 flex、左对齐、`6px 10px` 内边距、16px 图标与 hover 背景；修正先前裸 `<button>` 默认居中、与其它项不一致的问题。
+- 修复设置页会话列表不完整：`/state` 的 catalog 现在返回“已加载会话 ∪ 工作区 sessionIds 中的持久化会话 ∪ 已静音会话”，未加载的会话标为离线；客户端据此为每个会话建立 workspace 映射，工作区静音标记不再依赖先点一次会话静音。
+- 修复客户端首次拉取 `/state` 可能失败导致静音状态/映射空白：启动后按 600ms/1.5s/3s/6s/12s 重试，直到成功。
+- 修复工作区静音对“未登记在 workspace.sessionIds 但位于工作区子目录”的会话不生效：服务端在精确路径匹配失败后按最长工作区路径前缀解析。
+- 工作区静音增加常驻状态提示：客户端缓存 `session → workspace` 映射，会话行尾的铃铛标记现在同时反映“会话静音”和“工作区静音”，tooltip 分别显示「推送通知已静音」/「工作区推送通知已静音」。宿主未提供工作区行装饰 slot，因此标记落在该工作区的会话行上。
+- 工作区菜单项 `order` 由 900 降到 199：宿主的「在文件夹显示/复制目录/打开目录/归档工作区」是一个 order 200 的 provider 组，因此放在 199 可整体位于「归档工作区」上方（无法插进组内，宿主未提供工作区菜单 slot）。
+- 测试同步更新（83 / 83 通过）；已用真实 `dsh web` 验证行尾铃铛消失、行「…」菜单静音项唯一、静音后出现行尾标记。
+
 ## 0.2.0 — 2026-11-13
 
 - 新增「更多推送渠道」：在 Bark 之外可同时启用 Gotify、ntfy、PushDeer、Server酱、PushPlus、额外 Bark 服务器与自定义 Webhook。每条通知并行投递到 Bark 和所有已启用渠道，渠道之间互相隔离，单个渠道失败不影响其他渠道或 DSH。
@@ -11,7 +27,7 @@
 - 交互重构（遵循 DSH 插件最佳实践）：管理页 iframe 无法固定底部 toast（宿主会把 iframe 撑到内容全高），改由客户端半注册官方 `shell.overlay` 框架级浮层来显示 toast——它位于顶层文档、盖在所有列之上，滚动到任何位置都可见；测试结果就近显示在触发它的卡片内，页面顶部状态改为轻量状态条。
 - 配置新增 `channels` 数组（最多 20 个），`publicConfig` 对渠道密钥脱敏；新增 `POST /api/bark-push/test-channel` 单渠道测试路由。
 - “恢复默认”保留已配置的 Device Key 与额外渠道，避免误删凭据。
-- 测试：77 / 77 通过（新增 `test/channels.test.js`、默认测试仅 Bark 的回归用例）。
+- 测试：83 / 83 通过（新增 `test/channels.test.js`、默认测试仅 Bark 的回归用例）。
 
 ## 0.1.6 — unreleased
 

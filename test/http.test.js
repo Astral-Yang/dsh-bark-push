@@ -168,3 +168,39 @@ test('nextConfigOverlay handles replace, add, clear, and reset', () => {
   assert.deepEqual(nextConfigOverlay({ deviceKeys: ['x'] }, { clearDeviceKeys: true }).overlay, { deviceKeys: [] });
   assert.deepEqual(nextConfigOverlay({ group: 'A' }, { reset: true }), { overlay: {}, reset: true });
 });
+
+test('state catalog exposes the session-to-workspace mapping', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const ctx = createFakeCtx({
+      workspaces: [{ id: 'ws-1', title: '项目', path: '/work/a', sessionIds: ['s1'] }],
+      sessions: [{ header: { id: 's1', cwd: '/work/a', createdAt: 1 } }],
+    });
+    apply(ctx, { stateFile: join(dir, 'state.json') });
+    const response = await invoke(ctx, ROUTES.state);
+    const payload = await response.json();
+    assert.equal(payload.catalog.sessionWorkspace.s1, 'ws-1');
+    assert.equal(payload.catalog.sessions.find((row) => row.id === 's1').workspaceId, 'ws-1');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('state catalog includes persisted workspace sessions that are not live', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const ctx = createFakeCtx({
+      workspaces: [{ id: 'ws-1', title: '项目', path: '/work/a', sessionIds: ['s1', 's2'] }],
+      sessions: [{ header: { id: 's1', cwd: '/work/a', createdAt: 1 } }],
+    });
+    apply(ctx, { stateFile: join(dir, 'state.json') });
+    const payload = await (await invoke(ctx, ROUTES.state)).json();
+    const offline = payload.catalog.sessions.find((row) => row.id === 's2');
+    assert.ok(offline);
+    assert.equal(offline.offline, true);
+    assert.equal(offline.workspaceId, 'ws-1');
+    assert.equal(payload.catalog.sessionWorkspace.s2, 'ws-1');
+  } finally {
+    await cleanup();
+  }
+});

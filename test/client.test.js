@@ -11,7 +11,7 @@ const CLIENT_PATH = join(import.meta.dirname, '..', 'lib', 'client.js');
  * @param {object} [options] - environment overrides.
  * @returns {Promise<{ exports: object, registrations: Array<object>, menus: Array<object>, opened: string[], history: Array<object> }>} bundle.
  */
-async function loadClient({ href = 'https://dsh.example/', state = { ok: true, mute: { workspaces: ['ws-1'], sessions: ['s1'] } } } = {}) {
+async function loadClient({ href = 'https://dsh.example/', state = { ok: true, mute: { workspaces: ['ws-1'], sessions: ['s1'] } }, primitives = null } = {}) {
   const source = await readFile(CLIENT_PATH, 'utf8');
   const registrations = [];
   const menus = [];
@@ -90,6 +90,7 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
   assert.equal(loaded.id, 'dsh-bark-push');
   const exports = loaded.factory((request) => {
     if (request === 'react') return React;
+    if (request === '@deepseek-ai/dsh-client-ui-primitives' && primitives) return primitives;
     throw new Error(`unexpected require: ${request}`);
   });
 
@@ -136,18 +137,48 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
   return { exports, registrations, menus, opened, history };
 }
 
-test('registers the Settings section and the Session row mute action', async () => {
+test('registers the Settings section plus the relocated Session mute surfaces', async () => {
   const bundle = await loadClient();
   const names = bundle.registrations.map((entry) => entry.options?.name ?? entry.name);
   assert.equal(names.includes('settings.section'), true);
-  assert.equal(names.includes('sidebar.workspaces.session.row.action'), true);
+  assert.equal(names.includes('sidebar.workspaces.session.menu.item'), true);
+  assert.equal(names.includes('sidebar.session.row.trailing'), true);
+  assert.equal(names.includes('conversation.session.header.utilities'), true);
+  assert.equal(names.includes('sidebar.workspaces.session.row.action'), false);
+
   const section = bundle.registrations.find((entry) => entry.options?.name === 'settings.section');
   assert.equal(section.options.id, 'bark-push');
-  const rowAction = bundle.registrations.find((entry) => entry.options?.name === 'sidebar.workspaces.session.row.action');
-  const button = rowAction.component({ sessionId: 's1', t: (key) => key });
-  assert.equal(button.type, 'button');
-  assert.equal(button.props['aria-label'], 'unmute');
-  assert.equal(button.children[0].props.off, true);
+
+  // Session mute is a menu row rendered in both the row "..." and right-click menus.
+  const menu = bundle.registrations.find((entry) => entry.options?.name === 'sidebar.workspaces.session.menu.item');
+  assert.equal(menu.options.id, 'bark-push.mute');
+  assert.equal(menu.options.order, 510);
+  let closed = false;
+  const menuButton = menu.component({
+    sessionId: 's1',
+    t: (key) => key,
+    useMenuOpenState: () => [true, () => { closed = true; }],
+  });
+  assert.equal(menuButton.type, 'button');
+  assert.equal(menuButton.props.role, 'menuitem');
+  assert.equal(menuButton.props.className, 'bark-menuItem');
+  assert.equal(menuButton.children[1].children[0], 'unmute');
+  menuButton.props.onClick();
+  assert.equal(closed, true);
+
+  // The non-interactive trailing mark appears only for a muted Session.
+  const mark = bundle.registrations.find((entry) => entry.options?.name === 'sidebar.session.row.trailing');
+  const markNode = mark.component({ sessionId: 's1', t: (key) => key });
+  assert.equal(markNode.props['data-bark-muted-mark'], 'session');
+  assert.equal(mark.component({ sessionId: 's2', t: (key) => key }), null);
+
+  // The current Session's header bell mirrors the same state.
+  const header = bundle.registrations.find((entry) => entry.options?.name === 'conversation.session.header.utilities');
+  assert.equal(header.options.id, 'bark-push.mute');
+  const headerButton = header.component({ sessionId: 's1', t: (key) => key });
+  assert.equal(headerButton.type, 'button');
+  assert.equal(headerButton.props['aria-label'], 'unmute');
+
   const navIcon = bundle.registrations.find((entry) => entry.options?.name === 'settings.section.icon');
   assert.equal(navIcon.options.id, 'bark-push');
   const element = section.component({});
@@ -166,18 +197,15 @@ test('bundles both bell glyphs for the mute control', async () => {
   assert.equal(glyphs.bellOff.length >= 3, true);
 });
 
-test('registers native session and workspace context menus', async () => {
+test('registers the workspace context menu (session mute moved to the menu slot)', async () => {
   const bundle = await loadClient();
-  assert.equal(bundle.menus.length, 2);
-  const sessionMenu = bundle.menus.find((menu) => menu.target === 'session');
+  assert.equal(bundle.menus.length, 1);
+  assert.equal(bundle.menus.some((menu) => menu.target === 'session'), false);
   const workspaceMenu = bundle.menus.find((menu) => menu.target === 'workspace');
-  assert.ok(sessionMenu);
   assert.ok(workspaceMenu);
-  const sessionItems = sessionMenu.resolve({ sessionId: 's1' });
-  assert.equal(sessionItems.length, 1);
-  assert.equal(sessionItems[0].label, '取消静音推送通知');
-  assert.equal(sessionItems[0].icon.key, 'bark-push.bell-off');
+  assert.equal(workspaceMenu.order, 199);
   const workspaceItems = workspaceMenu.resolve({ workspaceId: 'ws-1' });
+  assert.equal(workspaceItems.length, 1);
   assert.equal(workspaceItems[0].label, '取消静音推送通知');
   assert.equal(workspaceItems[0].icon.key, 'bark-push.bell-off');
   const iconKeys = bundle.registrations
@@ -196,9 +224,10 @@ test('opens a Session from ?barkSession and removes the parameter', async () => 
 test('adopts mute state into the shared cache', async () => {
   const bundle = await loadClient();
   const internals = bundle.exports.__internals;
-  internals.adopt({ mute: { workspaces: ['a'], sessions: ['b'] } });
+  internals.adopt({ mute: { workspaces: ['a'], sessions: ['b'] }, catalog: { sessions: [{ id: 'b', workspaceId: 'a' }] } });
   assert.equal(internals.store.workspaces.has('a'), true);
   assert.equal(internals.store.sessions.has('b'), true);
+  assert.equal(internals.store.sessionWorkspace.get('b'), 'a');
 });
 
 test('registers the frame-wide toast overlay and exposes the toast store', async () => {
@@ -213,4 +242,59 @@ test('registers the frame-wide toast overlay and exposes the toast store', async
   assert.equal(toastStore.get().kind, 'bad');
   toastStore.dismiss();
   assert.equal(toastStore.get(), null);
+});
+
+test('prefers the host MenuItemButton primitive inside the session menu slot', async () => {
+  const MenuItemButton = (props) => ({ type: 'host-menu-item', props });
+  const bundle = await loadClient({ primitives: { MenuItemButton } });
+  const menu = bundle.registrations.find((entry) => entry.options?.name === 'sidebar.workspaces.session.menu.item');
+  let closed = false;
+  const node = menu.component({
+    sessionId: 's1',
+    t: (key) => key,
+    useMenuOpenState: () => [true, () => { closed = true; }],
+  });
+  assert.equal(node.type, MenuItemButton);
+  assert.deepEqual(node.children, ['unmute']);
+  assert.equal(node.props['data-bark-muted'], '1');
+  assert.equal(typeof node.props.onSelect, 'function');
+  node.props.onSelect();
+  assert.equal(closed, true);
+});
+
+test('a workspace mute marks its Session rows with a workspace label', async () => {
+  const bundle = await loadClient();
+  const internals = bundle.exports.__internals;
+  internals.adopt({
+    mute: { workspaces: ['ws-1'], sessions: [] },
+    catalog: { sessions: [{ id: 's9', workspaceId: 'ws-1' }] },
+  });
+  const mark = bundle.registrations.find((entry) => entry.options?.name === 'sidebar.session.row.trailing');
+  const node = mark.component({ sessionId: 's9', t: (key) => key });
+  assert.equal(node.props['data-bark-muted-mark'], 'workspace');
+  assert.equal(node.props['aria-label'], 'mutedWorkspace');
+  assert.equal(mark.component({ sessionId: 's10', t: (key) => key }), null);
+});
+
+test('maps workspaces from the catalog map and from a Session cwd fallback', async () => {
+  const bundle = await loadClient();
+  const internals = bundle.exports.__internals;
+  const mark = bundle.registrations.find((entry) => entry.options?.name === 'sidebar.session.row.trailing');
+
+  internals.adopt({
+    mute: { workspaces: ['ws-1'], sessions: [] },
+    catalog: { workspaces: [{ id: 'ws-1', path: '/work/a' }], sessionWorkspace: { s9: 'ws-1' } },
+  });
+  const fromMap = mark.component({ sessionId: 's9', t: (key) => key });
+  assert.equal(fromMap.props['aria-label'], 'mutedWorkspace');
+
+  internals.adopt({
+    mute: { workspaces: ['ws-1'], sessions: [] },
+    catalog: {
+      workspaces: [{ id: 'ws-1', path: '/work/a' }],
+      sessions: [{ id: 's11', workspaceId: null, cwd: '/work/a/sub' }],
+    },
+  });
+  const inferred = mark.component({ sessionId: 's11', t: (key) => key });
+  assert.equal(inferred.props['aria-label'], 'mutedWorkspace');
 });

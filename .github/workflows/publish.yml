@@ -1,6 +1,9 @@
 name: publish
 
 on:
+  push:
+    tags:
+      - 'v*'
   release:
     types: [published]
   workflow_dispatch:
@@ -37,5 +40,21 @@ jobs:
       - name: Verify package contents
         run: npm pack --dry-run
 
+      - name: Check whether this version is already published
+        id: published
+        run: |
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$PKG@$VER" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
+        if: steps.published.outputs.exists != 'true'
         run: npm publish --provenance --access public
+
+      - name: Version already published
+        if: steps.published.outputs.exists == 'true'
+        run: echo "Version already published; skipping."

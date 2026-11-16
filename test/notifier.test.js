@@ -224,3 +224,18 @@ test('the default test push only exercises Bark, never the extra channels', asyn
     await cleanup();
   }
 });
+
+test('resolves a workspace by longest cwd prefix when registry membership is missing', async () => {
+  const env = await setup({
+    workspaces: [
+      { id: 'ws-1', title: 'A', path: '/work/a', sessionIds: [] },
+      { id: 'ws-2', title: 'B', path: '/work/a/nested', sessionIds: [] },
+    ],
+  });
+  try {
+    assert.equal(await env.notifier.workspaceKeyFor('s-x', { header: { cwd: '/work/a/nested/deep' } }, true), 'ws-2');
+    assert.equal(await env.notifier.workspaceKeyFor('s-y', { header: { cwd: '/work/a/other' } }, true), 'ws-1');
+  } finally {
+    await env.cleanup();
+  }
+});

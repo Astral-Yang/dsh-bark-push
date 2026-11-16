@@ -1,6 +1,6 @@
 {
   "name": "dsh-bark-push",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Push notifications for DeepSeek Harness: reply summaries, approval requests, and user questions via Bark plus Gotify, ntfy, PushDeer, Server酱, PushPlus, extra Bark servers, and generic webhooks, with per-workspace and per-session mute.",
   "license": "MIT",
   "author": "Diana <1072486605@qq.com>",
