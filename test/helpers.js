@@ -32,11 +32,14 @@ export function createLogger() {
  * @param {object} [options] - context options.
  * @param {Array<object>} [options.workspaces] - workspace rows.
  * @param {Array<object>} [options.sessions] - live sessions.
+ * @param {Array<object>} [options.sessionSummaries] - canonical Session summaries.
+ * @param {Array<string>} [options.archivedSessionIds] - archived Session ids.
+ * @param {Array<string>} [options.pinnedSessionIds] - pinned Session ids.
  * @param {string} [options.advertisedUrl] - webApp URL.
  * @param {string} [options.origin] - webServer origin.
  * @returns {object} fake context plus inspection helpers.
  */
-export function createFakeCtx({ workspaces = [], sessions = [], advertisedUrl, origin } = {}) {
+export function createFakeCtx({ workspaces = [], sessions = [], sessionSummaries, archivedSessionIds = [], pinnedSessionIds = [], advertisedUrl, origin } = {}) {
   const handlers = new Map();
   const effects = [];
   const routes = [];
@@ -71,11 +74,20 @@ export function createFakeCtx({ workspaces = [], sessions = [], advertisedUrl, o
       list: () => workspaces,
       get: (id) => workspaces.find((workspace) => workspace.id === id),
       resolveByPath: async (path) => workspaces.find((workspace) => workspace.path === path),
+      get archivedSessionIds() {
+        return archivedSessionIds;
+      },
+      get pinnedSessionIds() {
+        return pinnedSessionIds;
+      },
     },
     sessions: {
       list: () => sessions,
       get: (id) => sessions.find((session) => session.header?.id === id),
     },
+    ...(sessionSummaries === undefined
+      ? {}
+      : { sessionController: { list: async () => ({ items: sessionSummaries }) } }),
     sessionTitle: {
       get: (session) => (session?.title ? { title: session.title } : undefined),
     },

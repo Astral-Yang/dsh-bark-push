@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { apply } from '../lib/index.js';
-import { installHttpRoutes, nextConfigOverlay, ROUTES } from '../lib/http.js';
-import { createBarkServer, createFakeCtx, tempDir } from './helpers.js';
+import { buildCatalog, installHttpRoutes, nextConfigOverlay, ROUTES } from '../lib/http.js';
+import { createBarkServer, createFakeCtx, createLogger, tempDir } from './helpers.js';
 
 const KEY = 'TEST_DEVICE_KEY_1234567890';
 
@@ -186,20 +186,105 @@ test('state catalog exposes the session-to-workspace mapping', async () => {
   }
 });
 
-test('state catalog includes persisted workspace sessions that are not live', async () => {
+test('state catalog includes cold ordinary sessions with projected titles', async () => {
   const { dir, cleanup } = await tempDir();
   try {
     const ctx = createFakeCtx({
       workspaces: [{ id: 'ws-1', title: '项目', path: '/work/a', sessionIds: ['s1', 's2'] }],
-      sessions: [{ header: { id: 's1', cwd: '/work/a', createdAt: 1 } }],
+      sessionSummaries: [
+        { sessionId: 's1', updatedAt: 2, blank: false, cwd: '/work/a', agentAvailable: true, projections: { values: { title: '活跃会话' } } },
+        { sessionId: 's2', updatedAt: 1, blank: false, cwd: '/work/a', agentAvailable: false, projections: { values: { title: '历史会话' } } },
+      ],
     });
     apply(ctx, { stateFile: join(dir, 'state.json') });
     const payload = await (await invoke(ctx, ROUTES.state)).json();
-    const offline = payload.catalog.sessions.find((row) => row.id === 's2');
-    assert.ok(offline);
-    assert.equal(offline.offline, true);
-    assert.equal(offline.workspaceId, 'ws-1');
+    const cold = payload.catalog.sessions.find((row) => row.id === 's2');
+    assert.ok(cold);
+    assert.equal(cold.title, '历史会话');
+    assert.equal(cold.workspaceId, 'ws-1');
     assert.equal(payload.catalog.sessionWorkspace.s2, 'ws-1');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('state catalog falls back to session query projections without the web controller', async () => {
+  const ctx = {
+    logger: createLogger(),
+    workspaceRegistry: {
+      list: () => [{ id: 'ws-1', title: '项目', path: '/work/a', sessionIds: ['s1', 's2', 's3'] }],
+      archivedSessionIds: [],
+      pinnedSessionIds: [],
+    },
+    sessionQuery: {
+      listSessions: async () => [
+        { header: { id: 's1', cwd: '/work/a', createdAt: 3 } },
+        { header: { id: 's2', cwd: '/work/a', createdAt: 2, origin: 'subagent' } },
+        { header: { id: 's3', cwd: '/work/a', createdAt: 1 } },
+      ],
+    },
+    sessionProjectionCache: {
+      cachedSnapshot: (header) => ({
+        values: {
+          title: header.id === 's1' ? '冷会话标题' : '空白会话',
+          sessionListMetadata: { blank: header.id === 's3', lastPromptAt: null },
+        },
+      }),
+    },
+    sessions: { get: () => undefined },
+    sessionTitle: { get: () => undefined },
+  };
+  const catalog = await buildCatalog(ctx, { mutedWorkspaces: [], mutedSessions: [] });
+  assert.deepEqual(catalog.sessions.map((row) => row.id), ['s1']);
+  assert.equal(catalog.sessions[0].title, '冷会话标题');
+});
+
+test('state catalog mirrors the DSH sidebar visibility rules', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const ctx = createFakeCtx({
+      workspaces: [{ id: 'ws-1', title: '项目', path: '/work/a', sessionIds: ['s1', 's2', 's3', 's4', 's6'] }],
+      archivedSessionIds: ['s4'],
+      pinnedSessionIds: ['s1'],
+      sessionSummaries: [
+        { sessionId: 's1', updatedAt: 3, blank: false, cwd: '/work/a', projections: { values: { title: '普通会话' } } },
+        { sessionId: 's2', updatedAt: 2, blank: false, origin: 'subagent', cwd: '/work/a', projections: { values: { title: '子代理会话' } } },
+        { sessionId: 's3', updatedAt: 1, blank: true, cwd: '/work/a' },
+        { sessionId: 's4', updatedAt: 4, blank: false, cwd: '/work/a', projections: { values: { title: '已归档会话' } } },
+        { sessionId: 's5', updatedAt: 5, blank: false, cwd: '/work/loose', projections: { values: { title: '未分组会话' } } },
+      ],
+    });
+    apply(ctx, { stateFile: join(dir, 'state.json') });
+    const payload = await (await invoke(ctx, ROUTES.state)).json();
+    assert.deepEqual(payload.catalog.sessions.map((row) => row.id), ['s1', 's5']);
+    assert.equal(payload.catalog.sessions.some((row) => row.id === 's6'), false);
+    assert.equal(payload.catalog.sessions[0].title, '普通会话');
+    assert.equal(payload.catalog.sessions[1].workspaceId, null);
+    assert.equal(payload.catalog.sessionWorkspace.s2, 'ws-1');
+  } finally {
+    await cleanup();
+  }
+});
+
+test('state catalog keeps muted archived sessions so the mute can be cleared', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const ctx = createFakeCtx({
+      workspaces: [{ id: 'ws-1', title: '项目', path: '/work/a', sessionIds: ['s4'] }],
+      archivedSessionIds: ['s4'],
+      sessionSummaries: [
+        { sessionId: 's4', updatedAt: 4, blank: false, cwd: '/work/a', projections: { values: { title: '已归档会话' } } },
+      ],
+    });
+    apply(ctx, { stateFile: join(dir, 'state.json') });
+    const response = await invoke(ctx, ROUTES.mute, { kind: 'session', id: 's4', muted: true });
+    const payload = await response.json();
+    const row = payload.catalog.sessions.find((session) => session.id === 's4');
+    assert.ok(row);
+    assert.equal(row.title, '已归档会话');
+    assert.equal(row.archived, true);
+    assert.equal(row.orphaned, true);
+    assert.equal(row.muted, true);
   } finally {
     await cleanup();
   }
