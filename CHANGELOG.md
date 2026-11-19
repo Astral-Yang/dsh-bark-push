@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.3.0 — 2026-11-19
+## 0.3.0 — 2026-11-20
 
 - 新增独立的浏览器通知通道：回复完成、需要批准、等待选择三类事件可通过浏览器系统通知提醒；与 Bark/额外渠道的开关、Device Key 和发送队列完全分离。
-- Settings 设置为「通知」入口，重构为顶部 Tab + 概览工作区：推送渠道、通知规则、浏览器通知、静音管理各自独立；浏览器通知提供独立总开关、类型开关、前台免打扰、权限状态、测试通知和正文模板。
+- Settings 设为「通知」入口，重构为顶部 Tab + 概览工作区：推送渠道、通知规则、浏览器通知、静音管理各自独立；浏览器通知提供独立总开关、类型开关、前台免打扰、权限状态、测试通知和正文模板。
 - 浏览器通知正文支持模板与占位符：`{status}`、`{session}`、`{summary}`、`{turn}`、`{tool}`、`{reason}`、`{question}`、`{questionCount}`、`{description}`；未知占位符保留，默认模板为 `{status} · {summary}` / `{status} · {tool} · {reason}` / `{status} · {question}`。
 - 新增认证 SSE 路由 `GET /api/bark-push/browser-events`；Host 侧 `BrowserNotifyHub` 负责事件去重、短缓冲和短描述输出，Web 客户端用 EventSource 接收并调用 Notification API。
 - 默认只在 DSH 页面打开且页面未获得焦点/其他会话时提醒；当前会话前台时按 `browserNotifySkipForeground` 跳过。点击通知只打开对应会话，审批仍需在 DSH 原生审批面板完成。

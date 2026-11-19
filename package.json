@@ -1,7 +1,7 @@
 {
   "name": "dsh-bark-push",
   "version": "0.3.0",
-  "description": "Push notifications for DeepSeek Harness: reply summaries, approval requests, and user questions via Bark plus Gotify, ntfy, PushDeer, Server酱, PushPlus, extra Bark servers, and generic webhooks, with per-workspace and per-session mute.",
+  "description": "Push and browser notifications for DeepSeek Harness: reply summaries, approval requests, and user questions via Bark, Gotify, ntfy, PushDeer, Server酱, PushPlus, extra Bark servers, and generic webhooks, with per-workspace/session mute and independent browser notification settings.",
   "license": "MIT",
   "author": "Diana <1072486605@qq.com>",
   "repository": {
@@ -49,7 +49,8 @@
     "webhook",
     "ios",
     "approval",
-    "notification"
+    "notification",
+    "browser-notification"
   ],
   "engines": {
     "node": ">=20.11",
