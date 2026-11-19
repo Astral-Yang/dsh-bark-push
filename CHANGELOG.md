@@ -3,12 +3,12 @@
 ## 0.3.0 — 2026-11-19
 
 - 新增独立的浏览器通知通道：回复完成、需要批准、等待选择三类事件可通过浏览器系统通知提醒；与 Bark/额外渠道的开关、Device Key 和发送队列完全分离。
-- Settings 改为「通知」入口 + 顶部 Tab：「推送通知」保持原有内容，「浏览器通知」提供独立总开关、类型开关、前台免打扰、权限状态、测试通知和浏览器通知静音管理。
+- Settings 设置为「通知」入口，重构为顶部 Tab + 概览工作区：推送渠道、通知规则、浏览器通知、静音管理各自独立；浏览器通知提供独立总开关、类型开关、前台免打扰、权限状态、测试通知和正文模板。
 - 浏览器通知正文支持模板与占位符：`{status}`、`{session}`、`{summary}`、`{turn}`、`{tool}`、`{reason}`、`{question}`、`{questionCount}`、`{description}`；未知占位符保留，默认模板为 `{status} · {summary}` / `{status} · {tool} · {reason}` / `{status} · {question}`。
 - 新增认证 SSE 路由 `GET /api/bark-push/browser-events`；Host 侧 `BrowserNotifyHub` 负责事件去重、短缓冲和短描述输出，Web 客户端用 EventSource 接收并调用 Notification API。
 - 默认只在 DSH 页面打开且页面未获得焦点/其他会话时提醒；当前会话前台时按 `browserNotifySkipForeground` 跳过。点击通知只打开对应会话，审批仍需在 DSH 原生审批面板完成。
 - 静音策略默认复用现有工作区/会话推送静音；`browserNotifyUsePushMutes=false` 时使用独立的 `browserMutedWorkspaces` / `browserMutedSessions`，设置页提供独立静音管理。
-- 设置页新增保存台账：顶部显示「全部更改已保存 / 有未保存的更改」与上次保存时间，分区和 Tab 显示未保存圆点；支持「放弃更改」和 `Ctrl/⌘+S` 快捷保存。静音切换明确标为即时生效，渠道「测试」提示会先保存当前配置。测试：102 / 102 通过。
+- 设置页新增保存台账：顶部显示「全部更改已保存 / 有未保存的更改」与上次保存时间，分区和顶部 Tab 显示未保存圆点；支持「放弃更改」和 `Ctrl/⌘+S` 快捷保存。静音切换明确标为即时生效，渠道「测试」提示会先保存当前配置。测试：102 / 102 通过。
 
 ## 0.2.2 — 2026-11-17
 

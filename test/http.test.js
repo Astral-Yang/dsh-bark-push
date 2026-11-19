@@ -156,6 +156,10 @@ test('serves the management page with a restrictive CSP', async () => {
     assert.equal(html.includes('panel-browser'), true);
     assert.equal(html.includes('browserNotifyReplyBody'), true);
     assert.equal(html.includes('browserNotifyUsePushMutes'), true);
+    assert.equal(html.includes('topnav'), true);
+    assert.equal(html.includes('panel-overview'), true);
+    assert.equal(html.includes('panel-mute'), true);
+    assert.equal(html.includes('saveMute'), true);
     assert.equal(html.includes('savebar'), true);
     assert.equal(html.includes('data-section-state'), true);
     assert.equal(html.includes('discardAll'), true);
