@@ -145,6 +145,48 @@ test('end-to-end: reply, approval, question, masking, mute and restart persisten
   }
 });
 
+test('end-to-end: browser notification SSE receives a completed reply without Bark', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const sessions = [liveSession('s1', '/work/a', '浏览器会话')];
+    const ctx = createFakeCtx({
+      workspaces: [{ id: 'ws-1', title: '项目一', path: '/work/a', sessionIds: ['s1'] }],
+      sessions,
+    });
+    apply(ctx, {
+      stateFile: join(dir, 'state.json'),
+      browserNotifyEnabled: true,
+      browserNotifyOnReply: true,
+      browserNotifyReplyBody: '{status} · {summary}',
+      browserNotifyUsePushMutes: true,
+    });
+    const response = await invoke(ctx, ROUTES.browserEvents);
+    assert.equal(response.status, 200);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let output = '';
+    const readUntil = async (needle) => {
+      for (let i = 0; i < 30; i += 1) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        output += decoder.decode(chunk.value, { stream: true });
+        if (output.includes(needle)) return;
+      }
+    };
+    await readUntil('event: ready');
+    const event = reply('s1', 1, '浏览器通知正文');
+    ctx.emit('session/event', sessions[0], event.assistant);
+    ctx.emit('session/event', sessions[0], event.end);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await readUntil('event: browser-notify');
+    assert.equal(output.includes('"sessionId":"s1"'), true);
+    assert.equal(output.includes('"body":"回复完成 · 浏览器通知正文"'), true);
+    await reader.cancel();
+  } finally {
+    await cleanup();
+  }
+});
+
 test('a Bark outage returns an error to the test endpoint but keeps event handlers alive', async () => {
   const { dir, cleanup } = await tempDir();
   try {

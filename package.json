@@ -1,6 +1,6 @@
 {
   "name": "dsh-bark-push",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Push notifications for DeepSeek Harness: reply summaries, approval requests, and user questions via Bark plus Gotify, ntfy, PushDeer, Server酱, PushPlus, extra Bark servers, and generic webhooks, with per-workspace and per-session mute.",
   "license": "MIT",
   "author": "Diana <1072486605@qq.com>",
@@ -64,7 +64,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-workspace"
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-api-session-controller"
       ]
     },
     "compatibility": {

@@ -126,3 +126,34 @@ test('masking never returns the full key and publicConfig never carries keys', (
   assert.deepEqual(view.deviceKeysMasked, [masked]);
   assert.equal(JSON.stringify(view).includes(key), false);
 });
+
+test('normalizes browser notification switches, templates, and body bounds', () => {
+  const defaults = normalizeConfig({}).config;
+  assert.equal(defaults.browserNotifyEnabled, false);
+  assert.equal(defaults.browserNotifyOnReply, true);
+  assert.equal(defaults.browserNotifyOnApproval, true);
+  assert.equal(defaults.browserNotifyOnQuestion, true);
+  assert.equal(defaults.browserNotifySkipForeground, true);
+  assert.equal(defaults.browserNotifyUsePushMutes, true);
+  assert.equal(defaults.browserNotifyReplyBody, '{status} · {summary}');
+  assert.equal(defaults.browserNotifyApprovalBody, '{status} · {tool} · {reason}');
+  assert.equal(defaults.browserNotifyQuestionBody, '{status} · {question}');
+  assert.equal(defaults.browserNotifyMaxBodyLength, 200);
+
+  const custom = normalizeConfig({
+    browserNotifyEnabled: true,
+    browserNotifyUsePushMutes: false,
+    browserNotifyReplyBody: '{session} {summary}',
+    browserNotifyApprovalBody: '{tool} {reason}',
+    browserNotifyQuestionBody: '{question} {questionCount}',
+    browserNotifyMaxBodyLength: 999,
+  }).config;
+  assert.equal(custom.browserNotifyEnabled, true);
+  assert.equal(custom.browserNotifyUsePushMutes, false);
+  assert.equal(custom.browserNotifyReplyBody, '{session} {summary}');
+  assert.equal(custom.browserNotifyMaxBodyLength, 500);
+
+  const empty = normalizeConfig({ browserNotifyReplyBody: '   ', browserNotifyMaxBodyLength: 1 }).config;
+  assert.equal(empty.browserNotifyReplyBody, DEFAULTS.browserNotifyReplyBody);
+  assert.equal(empty.browserNotifyMaxBodyLength, 32);
+});

@@ -41,3 +41,15 @@
         retryDelayMs: 500
         linkToSession: true
         publicBaseUrl: ''
+        # Independent browser notification channel. It is off by default and
+        # does not depend on Bark keys or channels.
+        browserNotifyEnabled: false
+        browserNotifyOnReply: true
+        browserNotifyOnApproval: true
+        browserNotifyOnQuestion: true
+        browserNotifySkipForeground: true
+        browserNotifyUsePushMutes: true
+        browserNotifyReplyBody: '{status} · {summary}'
+        browserNotifyApprovalBody: '{status} · {tool} · {reason}'
+        browserNotifyQuestionBody: '{status} · {question}'
+        browserNotifyMaxBodyLength: 200

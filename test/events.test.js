@@ -100,6 +100,24 @@ test('approval audit events notify once per id', () => {
   assert.equal(notifier.approvals[0].toolName, 'Bash');
 });
 
+test('browser notification sink receives reply, approval, and question events independently', () => {
+  const ctx = createFakeCtx();
+  const notifier = makeNotifier();
+  const browser = { replies: [], approvals: [], questions: [], reply: (input) => browser.replies.push(input), approval: (input) => browser.approvals.push(input), question: (input) => browser.questions.push(input) };
+  installSessionBridge(ctx, { notifier, browserNotifier: browser, getConfig: () => ({ includeSubagents: false }), logger: ctx.logger });
+  installQuestionBridge(ctx, { notifier, browserNotifier: browser, logger: ctx.logger });
+  const s = session();
+  ctx.emit('session/event', s, assistant(1, '回复'));
+  ctx.emit('session/event', s, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } });
+  ctx.emit('session/event', s, { type: 'approval/asked', data: { id: 'req-1', toolName: 'Bash', reason: '原因' } });
+  const handler = ctx.handlers.get('user-questions/request')[0];
+  handler({ agent: { id: 's1' }, questions: [{ question: '选哪个？' }] }, () => Promise.resolve({ answers: [] }));
+  assert.equal(browser.replies.length, 1);
+  assert.equal(browser.approvals.length, 1);
+  assert.equal(browser.questions.length, 1);
+  assert.equal(browser.approvals[0].toolName, 'Bash');
+});
+
 test('subagent sessions are skipped by default', () => {
   const ctx = createFakeCtx();
   const notifier = makeNotifier();

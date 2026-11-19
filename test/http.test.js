@@ -153,10 +153,58 @@ test('serves the management page with a restrictive CSP', async () => {
     const html = await response.text();
     assert.equal(html.includes('/api/bark-push/state'), true);
     assert.equal(html.includes('静音管理'), true);
+    assert.equal(html.includes('panel-browser'), true);
+    assert.equal(html.includes('browserNotifyReplyBody'), true);
+    assert.equal(html.includes('browserNotifyUsePushMutes'), true);
+    assert.equal(html.includes('savebar'), true);
+    assert.equal(html.includes('data-section-state'), true);
+    assert.equal(html.includes('discardAll'), true);
     assert.equal(html.includes('主动通知（active）'), true);
     assert.equal(html.includes('紧急通知（critical）'), true);
     assert.equal(html.includes('volume'), true);
     assert.equal(html.includes('id="levelNormal"'), false);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('state exposes browser notification config and independent mute sets', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const ctx = createFakeCtx();
+    apply(ctx, {
+      stateFile: join(dir, 'state.json'),
+      browserNotifyEnabled: true,
+      browserNotifyReplyBody: '{session} · {summary}',
+      browserNotifyMaxBodyLength: 120,
+    });
+    let payload = await (await invoke(ctx, ROUTES.state)).json();
+    assert.equal(payload.config.browserNotifyEnabled, true);
+    assert.equal(payload.config.browserNotifyReplyBody, '{session} · {summary}');
+    assert.equal(payload.config.browserNotifyMaxBodyLength, 120);
+    assert.deepEqual(payload.mute.browserWorkspaces, []);
+    assert.deepEqual(payload.mute.browserSessions, []);
+
+    const muted = await (await invoke(ctx, ROUTES.mute, { kind: 'session', id: 's1', muted: true, channel: 'browser' })).json();
+    assert.deepEqual(muted.mute.sessions, []);
+    assert.deepEqual(muted.mute.browserSessions, ['s1']);
+    const toggled = await (await invoke(ctx, ROUTES.toggle, { kind: 'session', id: 's1', channel: 'browser' })).json();
+    assert.equal(toggled.muted, false);
+    assert.deepEqual(toggled.mute.browserSessions, []);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('registers the browser notification SSE route', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const ctx = createFakeCtx();
+    apply(ctx, { stateFile: join(dir, 'state.json') });
+    const response = await invoke(ctx, ROUTES.browserEvents);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type').startsWith('text/event-stream'), true);
+    await response.body?.cancel();
   } finally {
     await cleanup();
   }

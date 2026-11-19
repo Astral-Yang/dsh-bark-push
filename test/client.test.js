@@ -11,13 +11,37 @@ const CLIENT_PATH = join(import.meta.dirname, '..', 'lib', 'client.js');
  * @param {object} [options] - environment overrides.
  * @returns {Promise<{ exports: object, registrations: Array<object>, menus: Array<object>, opened: string[], history: Array<object> }>} bundle.
  */
-async function loadClient({ href = 'https://dsh.example/', state = { ok: true, mute: { workspaces: ['ws-1'], sessions: ['s1'] } }, primitives = null } = {}) {
+async function loadClient({ href = 'https://dsh.example/', state = { ok: true, mute: { workspaces: ['ws-1'], sessions: ['s1'] } }, primitives = null, notificationPermission = 'granted', sessions = [] } = {}) {
   const source = await readFile(CLIENT_PATH, 'utf8');
   const registrations = [];
   const menus = [];
   const opened = [];
   const history = [];
+  const notifications = [];
+  const eventSources = [];
   let loaded = null;
+
+  function NotificationCtor(title, options) {
+    this.title = title;
+    this.options = options || {};
+    this.closed = false;
+    this.close = () => { this.closed = true; };
+    notifications.push(this);
+  }
+  NotificationCtor.permission = notificationPermission;
+  NotificationCtor.requestPermission = async () => notificationPermission;
+
+  class EventSourceCtor {
+    constructor(url) {
+      this.url = url;
+      this.listeners = new Map();
+      this.closed = false;
+      eventSources.push(this);
+    }
+    addEventListener(type, callback) { this.listeners.set(type, callback); }
+    emit(type, data) { const callback = this.listeners.get(type); if (callback) callback({ data }); }
+    close() { this.closed = true; }
+  }
 
   const React = {
     createElement: (type, props = {}, ...children) => ({ type, props, children }),
@@ -45,6 +69,8 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
     Symbol,
     Promise,
     Error,
+    Notification: NotificationCtor,
+    EventSource: EventSourceCtor,
     fetch: async () => ({ ok: true, status: 200, json: async () => state }),
     setTimeout: (fn, ms) => {
       if (ms < 1000) fn();
@@ -55,6 +81,7 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
     clearInterval: () => {},
     document: {
       visibilityState: 'visible',
+      hasFocus: () => true,
       addEventListener: () => {},
       removeEventListener: () => {},
     },
@@ -63,6 +90,8 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
       replaceState: (_state, _title, url) => history.push(url),
     },
     window: {
+      Notification: NotificationCtor,
+      EventSource: EventSourceCtor,
       location: { href },
       history: {
         replaceState: (_state, _title, url) => history.push(url),
@@ -132,9 +161,14 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
       openSession: (id) => opened.push(id),
     },
   };
+  if (sessions.length > 0) {
+    const byId = {};
+    for (const id of sessions) byId[id] = { id, retainedBy: { mainView: 1 } };
+    ctx.sessions = { list: { getSnapshot: () => ({ byId }) } };
+  }
   exports.apply(ctx);
   await new Promise((resolve) => setTimeout(resolve, 10));
-  return { exports, registrations, menus, opened, history };
+  return { exports, registrations, menus, opened, history, ctx, notifications, eventSources };
 }
 
 test('registers the Settings section plus the relocated Session mute surfaces', async () => {
@@ -297,4 +331,60 @@ test('maps workspaces from the catalog map and from a Session cwd fallback', asy
   });
   const inferred = mark.component({ sessionId: 's11', t: (key) => key });
   assert.equal(inferred.props['aria-label'], 'mutedWorkspace');
+});
+
+test('shows a browser notification, skips the current foreground session, and opens on click', async () => {
+  const bundle = await loadClient({ sessions: ['s1'] });
+  const internals = bundle.exports.__internals;
+  internals.adopt({ config: { browserNotifyEnabled: true, browserNotifySkipForeground: true }, mute: { workspaces: [], sessions: [] } });
+  const event = {
+    kind: 'reply',
+    sessionId: 's2',
+    sessionTitle: '会话二',
+    status: '回复完成',
+    body: '回复完成 · 已完成',
+  };
+  assert.equal(internals.browser.show(bundle.ctx, event), true);
+  assert.equal(bundle.notifications.length, 1);
+  assert.equal(bundle.notifications[0].title, '会话二');
+  assert.equal(bundle.notifications[0].options.body, '回复完成 · 已完成');
+  bundle.notifications[0].onclick();
+  assert.equal(bundle.opened.includes('s2'), true);
+  assert.equal(bundle.notifications[0].closed, true);
+
+  const current = { ...event, sessionId: 's1', sessionTitle: '会话一' };
+  assert.equal(internals.browser.show(bundle.ctx, current), false);
+  assert.equal(bundle.notifications.length, 1);
+});
+
+test('displays notifications received from the browser SSE stream', async () => {
+  const bundle = await loadClient({ sessions: [], notificationPermission: 'granted' });
+  const internals = bundle.exports.__internals;
+  internals.adopt({ config: { browserNotifyEnabled: true, browserNotifySkipForeground: false }, mute: { workspaces: [], sessions: [] } });
+  assert.equal(bundle.eventSources.length, 1);
+  assert.equal(bundle.eventSources[0].url, '/api/bark-push/browser-events');
+  bundle.eventSources[0].emit('browser-notify', JSON.stringify({
+    kind: 'question',
+    sessionId: 's1',
+    sessionTitle: '会话一',
+    status: '等待选择',
+    body: '等待选择 · 选哪个？',
+  }));
+  assert.equal(bundle.notifications.length, 1);
+  assert.equal(bundle.notifications[0].title, '会话一');
+  assert.equal(bundle.notifications[0].options.body, '等待选择 · 选哪个？');
+});
+
+test('does not show browser notifications when permission is not granted', async () => {
+  const bundle = await loadClient({ sessions: [], notificationPermission: 'denied' });
+  const internals = bundle.exports.__internals;
+  internals.adopt({ config: { browserNotifyEnabled: true, browserNotifySkipForeground: false }, mute: { workspaces: [], sessions: [] } });
+  assert.equal(internals.browser.show(bundle.ctx, {
+    kind: 'approval',
+    sessionId: 's1',
+    sessionTitle: '会话一',
+    status: '需要批准',
+    body: '需要批准 · Bash · 原因',
+  }), false);
+  assert.equal(bundle.notifications.length, 0);
 });

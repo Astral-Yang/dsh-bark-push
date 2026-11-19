@@ -69,7 +69,32 @@ test('normalizes unknown state shapes without throwing', () => {
   const state = normalizeState({ mutedWorkspaces: ['a', 3, 'a', ''], mutedSessions: 'nope', config: [] });
   assert.deepEqual(state.mutedWorkspaces, ['a']);
   assert.deepEqual(state.mutedSessions, []);
+  assert.deepEqual(state.browserMutedWorkspaces, []);
+  assert.deepEqual(state.browserMutedSessions, []);
   assert.deepEqual(state.config, {});
+});
+
+test('persists independent browser mutes without changing push mutes', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const file = join(dir, 'state.json');
+    const first = new StateStore({ file, logger: createLogger() });
+    first.loadSync();
+    await first.setMuted('workspace', 'ws-1', true, 'browser');
+    await first.setMuted('session', 's1', true, 'browser');
+    await first.setMuted('session', 's2', true, 'push');
+
+    const second = new StateStore({ file, logger: createLogger() });
+    second.loadSync();
+    assert.equal(second.isBrowserMuted({ workspaceKey: 'ws-1', sessionId: 's1' }), true);
+    assert.equal(second.isBrowserMuted({ sessionId: 's2' }), false);
+    assert.equal(second.isMuted({ sessionId: 's1' }), false);
+    assert.equal(second.isMuted({ sessionId: 's2' }), true);
+    assert.deepEqual(second.snapshot().browserMutedWorkspaces, ['ws-1']);
+    assert.deepEqual(second.snapshot().browserMutedSessions, ['s1']);
+  } finally {
+    await cleanup();
+  }
 });
 
 test('resolves a state file from config and DSH_HOME', () => {

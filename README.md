@@ -1,11 +1,11 @@
 # dsh-bark-push
 
-把 **DeepSeek Harness（DSH）** 的回复、审批请求和用户选择请求推送到手机：默认使用 iPhone 的 **Bark**，并可同时启用 Gotify、ntfy、PushDeer、Server酱、PushPlus、额外 Bark 服务器或**自定义 Webhook**。
+把 **DeepSeek Harness（DSH）** 的回复、审批请求和用户选择请求推送到手机：默认使用 iPhone 的 **Bark**，并可同时启用 Gotify、ntfy、PushDeer、Server酱、PushPlus、额外 Bark 服务器或**自定义 Webhook**。另外提供独立的**浏览器通知**通道，适合桌面端在 DSH 页面打开时接收提醒。
 
 - 不修改 DSH 核心代码，只使用 DSH 的事件、服务、HTTP 路由和客户端 Slot。
 - 支持工作区级、对话级两层静音，状态持久化。
 - 通知发送完全异步：任一渠道故障不会阻塞对话、工具调用或审批流程。
-- 配置页、测试推送、静音管理都在 DSH 的 **Settings → 推送通知** 中完成。
+- 配置页、测试推送、静音管理都在 DSH 的 **Settings → 通知** 中完成；顶部 Tab 区分「推送通知」与「浏览器通知」。
 
 ![Bark 推送设置页（0.1.1，使用本地 mock Bark Server 验证）](docs/settings-0.1.1.png)
 
@@ -16,6 +16,9 @@
 | 能力 | 状态 | 说明 |
 |---|---|---|
 | Agent 正式回复推送 | ✅ 已实现、已测试 | 监听 `session/event` 的 `assistant/message` + `turn/end`，只在 `completed` 回合推送最后一条可见文本 |
+| 浏览器通知（回复 / 批准 / 选择） | ✅ 已实现、已测试 | 独立 SSE 通道 + Notification API；仅页面打开时生效，不依赖 Bark |
+| 浏览器通知正文模板 | ✅ 已实现、已测试 | 三类模板支持 `{status}`、`{tool}`、`{question}` 等占位符；短描述，不发送完整正文 |
+| 浏览器通知静音策略 | ✅ 已实现、已测试 | 默认复用推送静音，可用 `browserNotifyUsePushMutes` 切换独立静音集合 |
 | 流式输出不重复推送 | ✅ 已实现、已测试 | 不监听 delta；每回合最多一条，按 `sessionId + turn` 去重 |
 | 需要批准推送 | ✅ 已实现、已测试 | 监听 `approval/asked` 审计事件，标题固定 `需要批准`，使用审批独立级别 |
 | 等待选择推送 | ✅ 已实现、已测试 | 观察 `user-questions/request` waterfall，通知后调用 `next()`，不影响真正的回答 UI，使用选择独立级别 |
@@ -152,12 +155,16 @@ dsh --profile web
 
 ### 4.1 Settings 页面
 
-Settings → **推送通知** 采用“分区 + 状态优先”的布局（不再是嵌套卡片）：
+Settings → **通知** 采用“顶部 Tab + 分区 + 状态优先”的布局：
 
-- **默认渠道 · Bark**：Bark Server、Device Key（掩码列表 / 追加 / 清空）；分组、级别与铃声、标题与长度、网络重试、跳转调试等低使用率项收进可折叠的**「高级选项」**（默认折叠）。
-- **通知规则**：总开关、回复 / 批准 / 选择 / 子代理五个开关，用卡片式开关呈现，每个都有一句说明。
-- **渠道**：每个额外渠道是一行“投递通道”：左侧状态点（绿色=启用 / 空心=停用）、名称与类型标签、启用开关、参数（展开才编辑）、测试、删除；支持 Gotify / ntfy / PushDeer / Server酱 / PushPlus / 额外 Bark / 自定义 Webhook，可逐个添加。
-- **静音管理**：工作区 / 会话两层静音；会话列表与 DSH 左侧会话列表使用同一套可见性规则（隐藏子代理、空白新会话与已归档会话），失效但仍有静音记录的会话会保留以便取消。
+- **推送通知 Tab**：
+  - **默认渠道 · Bark**：Bark Server、Device Key（掩码列表 / 追加 / 清空）；分组、级别与铃声、标题与长度、网络重试、跳转调试等低使用率项收进可折叠的**「高级选项」**（默认折叠）。
+  - **通知规则**：总开关、回复 / 批准 / 选择 / 子代理五个开关，用卡片式开关呈现，每个都有一句说明。
+  - **渠道**：每个额外渠道是一行“投递通道”：左侧状态点（绿色=启用 / 空心=停用）、名称与类型标签、启用开关、参数（展开才编辑）、测试、删除；支持 Gotify / ntfy / PushDeer / Server酱 / PushPlus / 额外 Bark / 自定义 Webhook，可逐个添加。
+  - **静音管理**：工作区 / 会话两层静音；会话列表与 DSH 左侧会话列表使用同一套可见性规则（隐藏子代理、空白新会话与已归档会话），失效但仍有静音记录的会话会保留以便取消。
+- **浏览器通知 Tab**：独立的浏览器通知总开关、回复 / 批准 / 选择类型开关、前台免打扰、正文模板、权限状态和浏览器通知静音管理。
+
+页面顶部有一条**保存台账**：有修改时显示「有未保存的更改」，保存后显示「全部更改已保存」和上次保存时间；对应分区以及「推送通知 / 浏览器通知」Tab 也会标出未保存状态。可点「保存全部更改」或按 `Ctrl/⌘+S` 保存，点「放弃更改」恢复最近保存的配置。静音切换是即时生效，不需要点保存；渠道的「测试」会先保存当前配置。
 
 页面只显示 Device Key 与渠道密钥的掩码（例如 `TEST••••90`），完整值不会出现在页面、JSON API 或日志中。每个分区底部都有「保存全部更改」按钮，保存后**就地显示「已保存 HH:MM:SS」**，不依赖 toast、也不受滚动位置影响。
 
@@ -191,6 +198,16 @@ Settings → **推送通知** 采用“分区 + 状态优先”的布局（不�
 | `linkToSession` | `true` | 生成 `?barkSession=` 点击链接 |
 | `publicBaseUrl` | `''` | 覆盖 advertised URL；留空时自动使用 `ctx.webApp.getAdvertisedUrl()` |
 | `trace` | `false` | 保留字段；默认不输出消息内容 |
+| `browserNotifyEnabled` | `false` | 浏览器通知总开关；与 Bark 的 `enabled` 独立 |
+| `browserNotifyOnReply` | `true` | 浏览器通知：回复完成 |
+| `browserNotifyOnApproval` | `true` | 浏览器通知：需要批准 |
+| `browserNotifyOnQuestion` | `true` | 浏览器通知：等待选择 |
+| `browserNotifySkipForeground` | `true` | 当前会话且页面在前台时不提醒 |
+| `browserNotifyUsePushMutes` | `true` | 复用推送通知的工作区/会话静音；关闭后使用独立浏览器静音集合 |
+| `browserNotifyReplyBody` | `{status} · {summary}` | 回复完成正文模板 |
+| `browserNotifyApprovalBody` | `{status} · {tool} · {reason}` | 需要批准正文模板 |
+| `browserNotifyQuestionBody` | `{status} · {question}` | 等待选择正文模板 |
+| `browserNotifyMaxBodyLength` | `200` | 浏览器通知正文最大字符数（32–500） |
 | `stateFile` | 由 `DSH_HOME` 推导 | 仅 Loader 配置：覆盖 `state.json` 路径；管理页不暴露 |
 
 ### 4.3 优先级
@@ -274,6 +291,21 @@ channels:
       contentType: application/json
 ```
 
+### 4.7 浏览器通知
+
+浏览器通知是独立的 Web Notification 通道，默认关闭，不依赖 Bark Device Key 或任何推送渠道。它只在 DSH 页面打开时工作；页面关闭、浏览器退出或移动端 Safari 页面通知请继续使用 Bark。
+
+特点：
+
+- **独立控制**：`browserNotifyEnabled` 与 Bark 的 `enabled` 分离，三个类型开关也独立于推送通知规则。
+- **前台免打扰**：默认在“当前会话且页面可见、窗口有焦点”时跳过通知；可关闭该开关。
+- **正文模板**：三个类型分别支持 `{status}`、`{session}`、`{summary}`、`{turn}`、`{tool}`、`{reason}`、`{question}`、`{questionCount}`、`{description}` 占位符；未知占位符原样保留，空模板回退默认值。
+- **短内容**：正文只包含状态和短描述，不发送完整回复正文、工具参数、命令或图片。
+- **静音策略**：默认复用推送通知的工作区/会话静音；关闭 `browserNotifyUsePushMutes` 后使用独立的浏览器静音集合，可在设置页单独管理。
+- **批准限制**：通知内不提供“允许 / 拒绝”按钮；点击通知只打开对应会话，审批仍由 DSH 原生审批面板完成。
+
+浏览器通知仅支持页面打开时生效，不包含 Web Push。浏览器权限按浏览器单独授予；配置本身按 DSH profile 共享。
+
 ---
 
 ## 5. Bark 配置示例
@@ -332,7 +364,7 @@ curl -X POST 'https://api.day.app/push' \
 ### 6.1 工作区静音
 
 - 在左侧工作区列表右键点击工作区 → **静音推送通知** / **取消静音推送通知**。
-- 或在 Settings → 推送通知 → **工作区** 列表中勾选。
+- 或在 Settings → 通知 → 推送通知 → **工作区** 列表中勾选。
 - 工作区被静音后，其下每个会话行都会显示一个**不可点的铃铛标记**（tooltip 为“工作区推送通知已静音”）。宿主没有工作区行的装饰 slot，因此标记落在该工作区的会话行上；工作区静音本来就会抑制这些会话。
 - 按稳定的 `WorkspaceId` 保存，不受路径重命名影响。
 
@@ -341,7 +373,7 @@ curl -X POST 'https://api.day.app/push' \
 - 会话行尾「…」菜单或右键菜单 → **静音推送通知** / **取消静音推送通知**（不再占用行尾 hover 按钮条，避免与其它插件抢位）。
 - 正在打开的会话：顶部工具区有一个铃铛，可快速静音/取消静音当前会话。
 - 被静音的会话行会显示一个**不可点的小铃铛标记**，状态一眼可见。
-- 或在 Settings → 推送通知 → **会话** 列表中勾选，支持按标题/ID 过滤。列表包含当前已加载的会话**以及工作区中已持久化但暂未加载的会话**（离线会话标为“离线”），不会只显示一部分。
+- 或在 Settings → 通知 → 推送通知 → **会话** 列表中勾选，支持按标题/ID 过滤。列表包含当前已加载的会话**以及工作区中已持久化但暂未加载的会话**（离线会话标为“离线”），不会只显示一部分。
 
 ### 6.3 优先级与持久化
 
@@ -367,6 +399,8 @@ curl -X POST 'https://api.day.app/push' \
   },
   "mutedWorkspaces": ["4f8c1e2a-..."],
   "mutedSessions": ["session-59e92616-..."],
+  "browserMutedWorkspaces": [],
+  "browserMutedSessions": [],
   "lastTest": {
     "at": "2026-11-12T03:14:51.990Z",
     "ok": true,
@@ -385,9 +419,10 @@ curl -X POST 'https://api.day.app/push' \
 | `GET` | `/api/bark-push/ui` | 管理页 HTML |
 | `POST` | `/api/bark-push/config` | 保存配置；支持 `addDeviceKeys`、`deviceKeys`、`clearDeviceKeys`、`reset` |
 | `POST` | `/api/bark-push/mute` | `{kind:'workspace'|'session', id, muted}` |
-| `POST` | `/api/bark-push/toggle` | `{kind, id}` 原子切换 |
+| `POST` | `/api/bark-push/toggle` | `{kind, id, channel?: 'push'| 'browser'}` 原子切换 |
 | `POST` | `/api/bark-push/test` | 测试推送（Bark + 所有已启用渠道） |
 | `POST` | `/api/bark-push/test-channel` | `{id}` 只测试一个额外渠道 |
+| `GET` | `/api/bark-push/browser-events` | 浏览器通知 SSE 事件流（`text/event-stream`） |
 
 POST 需要 `x-dsh-bark-action: 1` 和 `content-type: application/json`，作为 DSH Host/Origin 检查之外的第二道同源栅栏。
 
