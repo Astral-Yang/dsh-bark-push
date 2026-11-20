@@ -100,6 +100,12 @@ test('publicConfig hides legacy level and sound keys', () => {
   assert.equal(view.soundReply, 'bell');
 });
 
+test('accepts a shortcuts public base and rejects webapp and unsafe schemes', () => {
+  assert.equal(normalizeConfig({ publicBaseUrl: 'shortcuts://run-shortcut?name=dsh' }).config.publicBaseUrl, 'shortcuts://run-shortcut?name=dsh');
+  assert.equal(normalizeConfig({ publicBaseUrl: 'webapp://dsh/session' }).config.publicBaseUrl, '');
+  assert.equal(normalizeConfig({ publicBaseUrl: 'javascript:alert(1)' }).config.publicBaseUrl, '');
+});
+
 test('an explicit empty publicBaseUrl clears the previous value', () => {
   const base = normalizeConfig({ publicBaseUrl: 'https://old.example/' }).config;
   const { config } = mergeConfig(base, { publicBaseUrl: '' });

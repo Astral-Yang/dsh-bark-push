@@ -117,7 +117,18 @@ test('formats approval and question titles exactly as specified', () => {
 
 test('builds a session deep link and rejects unusable bases', () => {
   const url = buildSessionUrl({ baseUrl: 'https://dsh.example.com/', sessionId: 'session-1', focus: 'approval' });
-  assert.equal(url, 'https://dsh.example.com/?barkSession=session-1&barkFocus=approval');
+  assert.equal(url, 'https://dsh.example.com/?barkSession=session-1');
   assert.equal(buildSessionUrl({ baseUrl: '', sessionId: 'session-1' }), undefined);
   assert.equal(buildSessionUrl({ baseUrl: 'ftp://x/', sessionId: 'session-1' }), undefined);
+});
+
+test('keeps a shortcuts handoff untouched without a session bridge', () => {
+  const shortcuts = buildSessionUrl({
+    baseUrl: 'shortcuts://run-shortcut?name=dsh',
+    sessionId: 'session-1',
+    focus: 'approval',
+  });
+  assert.equal(shortcuts, 'shortcuts://run-shortcut?name=dsh');
+  assert.equal(shortcuts.includes('barkSession'), false);
+  assert.equal(buildSessionUrl({ baseUrl: 'webapp://dsh/session', sessionId: 'session-1' }), undefined);
 });

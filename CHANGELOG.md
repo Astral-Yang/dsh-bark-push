@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3 — 2026-11-20
+
+- `publicBaseUrl` 支持 `shortcuts://` 作为 iOS 快捷指令桥接：快捷指令用「打开 URL」打开 `webapp://...`，Bark 点击 `shortcuts://run-shortcut?...` 间接唤起 WebApp；该链接不附加 `barkSession`。
+- HTTP(S) 链接继续通过客户端桥接打开对应会话；不再生成没有实际路由的 `barkFocus` 参数。客户端会等待 Session 列表就绪后再打开，避免慢启动时 350ms 后静默失效。测试：109 / 109 通过。
+- 设置页「跳转与调试」增加快捷指令桥接的简要提示与 README 链接，说明如何在快捷指令中用「打开 URL」打开 `webapp://`。
+
 ## 0.3.2 — 2026-11-20
 
 - 优化 Web 页面加载：客户端启动改用轻量 `/state?catalog=0`，只返回配置、静音和 workspace 索引，不再为普通页面加载构建完整 Session catalog；完整目录仍由设置页按需加载。

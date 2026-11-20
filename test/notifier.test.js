@@ -73,6 +73,19 @@ test('one completed turn produces exactly one reply notification', async () => {
   }
 });
 
+test('shortcuts public base is sent untouched without session params', async () => {
+  const env = await setup();
+  try {
+    env.setConfig({ publicBaseUrl: 'shortcuts://run-shortcut?name=dsh' });
+    const s = session('s1', '/work/a', '会话 A');
+    env.notifier.reply({ session: s, sessionId: 's1', turn: 1, text: '回复', sessionTitle: '会话 A' });
+    await waitFor(() => env.sent.length >= 1);
+    assert.equal(env.sent[0].url, 'shortcuts://run-shortcut?name=dsh');
+  } finally {
+    await env.cleanup();
+  }
+});
+
 test('duplicate approval ids are suppressed', async () => {
   const env = await setup();
   try {
@@ -82,7 +95,7 @@ test('duplicate approval ids are suppressed', async () => {
     await waitFor(() => env.sent.length >= 1);
     assert.equal(env.sent.length, 1);
     assert.equal(env.sent[0].title, '需要批准');
-    assert.equal(env.sent[0].url.includes('barkFocus=approval'), true);
+    assert.equal(env.sent[0].url.includes('barkFocus'), false);
   } finally {
     await env.cleanup();
   }
@@ -148,7 +161,7 @@ test('question notifications format the options and do not claim the waterfall',
     await waitFor(() => env.sent.length >= 1);
     assert.equal(env.sent[0].title, '等待选择');
     assert.equal(env.sent[0].body.includes('1) A'), true);
-    assert.equal(env.sent[0].url.includes('barkFocus=question'), true);
+    assert.equal(env.sent[0].url.includes('barkFocus'), false);
   } finally {
     await env.cleanup();
   }

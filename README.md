@@ -7,7 +7,7 @@
 - 通知发送完全异步：任一渠道故障不会阻塞对话、工具调用或审批流程。
 - 配置页、测试推送、静音管理都在 DSH 的 **Settings → 通知** 中完成；页面使用顶部 Tab，把概览、推送渠道、通知规则、浏览器通知和静音管理分成五个独立工作区。
 
-当前版本 **0.3.2**：优化页面启动与浏览器通知连接，客户端启动不再构建完整 Session catalog；SSE 仅在启用浏览器通知时建立。
+当前版本 **0.3.3**：支持用 iOS 快捷指令桥接桌面 WebApp，完善 HTTP(S) 会话深链，并移除未生效的 `barkFocus` 参数。
 
 ![Bark Push 通知设置页（0.3.0，概览工作区，使用本地 mock 验证）](docs/settings-0.3.0.png)
 
@@ -31,7 +31,7 @@
 | Bark 配置界面 | ✅ 已实现、已验证 | Settings 内嵌管理页，支持 Server、Device Key、Group、Icon、Sound、级别、长度、超时、重试、类型开关 |
 | 测试推送 | ✅ 已实现、已验证 | 设置页按钮；使用本地 Bark 兼容 mock 验证了完整请求载荷 |
 | 更多推送渠道 | ✅ 已实现、已测试 | Gotify、ntfy、PushDeer、Server酱、PushPlus、额外 Bark、自定义 Webhook；与 Bark 并列，任一渠道失败互不影响 |
-| 点击通知跳转 | ✅ 已验证 | 通过客户端桥接 `?barkSession=<id>` 打开对应会话；DSH 本身没有可寻址的会话 URL |
+| 点击通知跳转 | ✅ 已验证 | HTTP(S) 通过客户端桥接 `?barkSession=<id>` 打开对应会话；`shortcuts://` 原样交给 iOS，可桥接桌面 WebApp，不附加会话参数 |
 | 通知内直接批准/选择 | — 按设计不提供 | 交互仍由 DSH 负责；Bark 只负责提醒 |
 | 真实 iPhone 送达 | ✅ 已验证 | 已在真实 iPhone + Bark App 上验证通知可送达；Device Key 仅保存在本机 |
 
@@ -67,7 +67,7 @@
 | 客户端设置页 | 客户端 `settings.section` Slot | 内嵌 `/api/bark-push/ui?embed=1` |
 | 工作区/会话右键菜单 | 客户端 `ctx.contextMenus.register({ target: 'workspace'|'session' })` | 原生右键菜单项 |
 | 会话行铃铛 | `sidebar.workspaces.session.row.action` Slot | 有会话行时显示 🔔/🔕 |
-| 会话跳转 | 客户端 `ctx.uiWorkspace.openSession(sessionId)` | 读取 `?barkSession=` 后调用 |
+| 会话跳转 | 客户端 `ctx.uiWorkspace.openSession(sessionId)` | HTTP(S) 读取 `?barkSession=` 后调用；自定义 Scheme 由系统处理 |
 
 ### 2.3 没有凭空假设的 API
 
@@ -197,8 +197,8 @@ Settings → **通知** 采用顶部 Tab + 工作区的产品化布局。页面�
 | `timeoutMs` | `8000` | 单次请求超时（1000–30000） |
 | `maxRetries` | `2` | 0–5 次重试 |
 | `retryDelayMs` | `500` | 指数退避基础间隔（50–10000） |
-| `linkToSession` | `true` | 生成 `?barkSession=` 点击链接 |
-| `publicBaseUrl` | `''` | 覆盖 advertised URL；留空时自动使用 `ctx.webApp.getAdvertisedUrl()` |
+| `linkToSession` | `true` | 生成点击链接；HTTP(S) 附加 `?barkSession=`，`shortcuts://` 原样使用 |
+| `publicBaseUrl` | `''` | 覆盖 advertised URL；支持 `http(s)://` 和 `shortcuts://`；留空时自动使用 `ctx.webApp.getAdvertisedUrl()` |
 | `trace` | `false` | 保留字段；默认不输出消息内容 |
 | `browserNotifyEnabled` | `false` | 浏览器通知总开关；与 Bark 的 `enabled` 独立 |
 | `browserNotifyOnReply` | `true` | 浏览器通知：回复完成 |
@@ -314,6 +314,40 @@ channels:
 - **批准限制**：通知内不提供“允许 / 拒绝”按钮；点击通知只打开对应会话，审批仍由 DSH 原生审批面板完成。
 
 浏览器通知仅支持页面打开时生效，不包含 Web Push。浏览器权限按浏览器单独授予；配置本身按 DSH profile 共享。
+
+---
+
+### 4.8 用快捷指令桥接桌面 WebApp
+
+实测 Bark 直接点击 `webapp://` 不稳定；但同一台 iPhone 的快捷指令可以打开它。可以用快捷指令做中间层：
+
+1. 在「快捷指令」App 新建快捷指令，添加动作 **打开 URL**，填入：
+
+   ```text
+   webapp://dsh.example.com/
+   ```
+
+   保存并命名，例如 `DSH`。
+
+2. 在 DSH 的 Bark 推送设置 →「推送渠道」→「跳转与调试」中，把「公共访问地址」填为：
+
+   ```text
+   shortcuts://run-shortcut?name=DSH
+   ```
+
+   名称含空格、中文或其他特殊字符时使用 URL 编码，例如：
+
+   ```text
+   shortcuts://run-shortcut?name=%E4%BD%A0%E7%9A%84%E5%BF%AB%E6%8D%B7%E6%8C%87%E4%BB%A4
+   ```
+
+3. 保持「附加打开链接」开启。之后 Bark 推送里的 URL 就是这条 `shortcuts://` 地址；点击后先运行快捷指令，再由快捷指令打开 WebApp。
+
+边界：
+
+- 这条路径只打开 WebApp 的根地址，不定位具体会话；`barkSession` 不会附加到 `shortcuts://` 链接。
+- 需要定位具体会话时，使用 HTTP(S) 的 `?barkSession=` 路径。
+- 不要把 `webapp://` 直接填进「公共访问地址」；插件会拒绝该 Scheme，Bark 也无法稳定打开。
 
 ---
 
@@ -466,7 +500,7 @@ POST 需要 `x-dsh-bark-action: 1` 和 `content-type: application/json`，作为
 ```
 
 - 默认使用 `levelApproval: timeSensitive` 和 `soundApproval`；只影响审批通知。
-- 点击打开对应会话（`barkFocus=approval` 只是提示，实际没有审批专属路由）。
+- 点击打开对应会话；不生成无实际路由的 `barkFocus` 参数。`shortcuts://` 不附加 `barkSession`，由快捷指令自行处理。
 
 ### 7.3 等待选择
 
@@ -643,7 +677,9 @@ DSH_HOME=/tmp/dsh-bark-smoke dsh --profile web --no-open --port 3999
 | 测试推送失败 | Server 是否是 http(s) 根地址；Device Key 是否正确；自建服务是否支持 `POST /push` |
 | 收不到回复通知 | 总开关/回复开关；会话或工作区是否静音；该回合是否 `completed`；是否为子代理 |
 | 收不到审批通知 | 会话审批策略是否为 `never`；`approval/asked` 是否产生 |
-| 点击通知只打开首页 | 客户端插件是否加载；浏览器是否已登录；`publicBaseUrl`/advertised URL 是否正确 |
+| 点击通知只打开首页 | 客户端插件是否加载；浏览器是否已登录；`publicBaseUrl`/advertised URL 是否正确；链接是否使用了干净的 HTTP(S) 根地址 |
+| 点击通知带 `barkSession` 仍只打开首页 | `publicBaseUrl` 是否含启动 token/查询串；DSH 对带 token 的根请求会 303 到 `./` 并丢弃查询，改用不含 token 的干净根地址 |
+| Bark 无法打开 `shortcuts://` | 快捷指令名称是否与 `shortcuts://run-shortcut?name=...` 一致；名称中的空格/中文是否已 URL 编码；同一台 iPhone 的快捷指令能否手动通过该链接运行 |
 | 重启后静音丢失 | `$DSH_HOME` 是否变化；`state.json` 是否可写；是否用了不同 profile |
 | 日志出现 `状态文件解析失败` | 损坏文件已移动到 `state.json.corrupt-<timestamp>`；检查后重新配置 |
 
