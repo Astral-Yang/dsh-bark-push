@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 — 2026-11-20
 
 - 优化 Web 页面加载：客户端启动改用轻量 `/state?catalog=0`，只返回配置、静音和 workspace 索引，不再为普通页面加载构建完整 Session catalog；完整目录仍由设置页按需加载。
 - 客户端启动 `/state` 请求改为 single-flight，并将启动重试从 5 次缩减为 2 次；首次请求较慢时不再并发重复扫描 Session 列表。
