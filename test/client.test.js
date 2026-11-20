@@ -348,6 +348,7 @@ test('shows a browser notification, skips the current foreground session, and op
   assert.equal(bundle.notifications.length, 1);
   assert.equal(bundle.notifications[0].title, '会话二');
   assert.equal(bundle.notifications[0].options.body, '回复完成 · 已完成');
+  assert.equal(bundle.notifications[0].options.requireInteraction, false);
   bundle.notifications[0].onclick();
   assert.equal(bundle.opened.includes('s2'), true);
   assert.equal(bundle.notifications[0].closed, true);
@@ -373,6 +374,49 @@ test('displays notifications received from the browser SSE stream', async () => 
   assert.equal(bundle.notifications.length, 1);
   assert.equal(bundle.notifications[0].title, '会话一');
   assert.equal(bundle.notifications[0].options.body, '等待选择 · 选哪个？');
+});
+
+test('applies per-type browser notification persistence', async () => {
+  const bundle = await loadClient({ sessions: [], notificationPermission: 'granted' });
+  const internals = bundle.exports.__internals;
+  internals.adopt({
+    config: {
+      browserNotifyEnabled: true,
+      browserNotifySkipForeground: false,
+      browserNotifyReplyPersistent: true,
+      browserNotifyApprovalPersistent: false,
+      browserNotifyQuestionPersistent: true,
+    },
+    mute: { workspaces: [], sessions: [] },
+  });
+
+  const makeEvent = (kind) => ({
+    kind,
+    sessionId: 's1',
+    sessionTitle: '会话一',
+    body: '测试正文',
+  });
+  assert.equal(internals.browser.show(bundle.ctx, makeEvent('reply')), true);
+  assert.equal(internals.browser.show(bundle.ctx, makeEvent('approval')), true);
+  assert.equal(internals.browser.show(bundle.ctx, makeEvent('question')), true);
+  assert.equal(bundle.notifications[0].options.requireInteraction, true);
+  assert.equal(bundle.notifications[1].options.requireInteraction, false);
+  assert.equal(bundle.notifications[2].options.requireInteraction, true);
+  assert.equal(internals.store.browserConfig.persistent.reply, true);
+  assert.equal(internals.store.browserConfig.persistent.approval, false);
+  assert.equal(internals.store.browserConfig.persistent.question, true);
+});
+
+test('defaults approval and question notifications to persistent while replies auto-dismiss', async () => {
+  const bundle = await loadClient({ sessions: [], notificationPermission: 'granted' });
+  const internals = bundle.exports.__internals;
+  internals.adopt({
+    config: { browserNotifyEnabled: true, browserNotifySkipForeground: false },
+    mute: { workspaces: [], sessions: [] },
+  });
+  assert.equal(internals.store.browserConfig.persistent.reply, false);
+  assert.equal(internals.store.browserConfig.persistent.approval, true);
+  assert.equal(internals.store.browserConfig.persistent.question, true);
 });
 
 test('does not show browser notifications when permission is not granted', async () => {

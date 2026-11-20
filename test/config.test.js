@@ -133,6 +133,9 @@ test('normalizes browser notification switches, templates, and body bounds', () 
   assert.equal(defaults.browserNotifyOnReply, true);
   assert.equal(defaults.browserNotifyOnApproval, true);
   assert.equal(defaults.browserNotifyOnQuestion, true);
+  assert.equal(defaults.browserNotifyReplyPersistent, false);
+  assert.equal(defaults.browserNotifyApprovalPersistent, true);
+  assert.equal(defaults.browserNotifyQuestionPersistent, true);
   assert.equal(defaults.browserNotifySkipForeground, true);
   assert.equal(defaults.browserNotifyUsePushMutes, true);
   assert.equal(defaults.browserNotifyReplyBody, '{status} · {summary}');
@@ -143,6 +146,9 @@ test('normalizes browser notification switches, templates, and body bounds', () 
   const custom = normalizeConfig({
     browserNotifyEnabled: true,
     browserNotifyUsePushMutes: false,
+    browserNotifyReplyPersistent: true,
+    browserNotifyApprovalPersistent: false,
+    browserNotifyQuestionPersistent: false,
     browserNotifyReplyBody: '{session} {summary}',
     browserNotifyApprovalBody: '{tool} {reason}',
     browserNotifyQuestionBody: '{question} {questionCount}',
@@ -150,6 +156,9 @@ test('normalizes browser notification switches, templates, and body bounds', () 
   }).config;
   assert.equal(custom.browserNotifyEnabled, true);
   assert.equal(custom.browserNotifyUsePushMutes, false);
+  assert.equal(custom.browserNotifyReplyPersistent, true);
+  assert.equal(custom.browserNotifyApprovalPersistent, false);
+  assert.equal(custom.browserNotifyQuestionPersistent, false);
   assert.equal(custom.browserNotifyReplyBody, '{session} {summary}');
   assert.equal(custom.browserNotifyMaxBodyLength, 500);
 

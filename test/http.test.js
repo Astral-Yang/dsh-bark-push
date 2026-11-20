@@ -155,6 +155,9 @@ test('serves the management page with a restrictive CSP', async () => {
     assert.equal(html.includes('静音管理'), true);
     assert.equal(html.includes('panel-browser'), true);
     assert.equal(html.includes('browserNotifyReplyBody'), true);
+    assert.equal(html.includes('browserNotifyReplyPersistent'), true);
+    assert.equal(html.includes('browserNotifyApprovalPersistent'), true);
+    assert.equal(html.includes('browserNotifyQuestionPersistent'), true);
     assert.equal(html.includes('browserNotifyUsePushMutes'), true);
     assert.equal(html.includes('topnav'), true);
     assert.equal(html.includes('panel-overview'), true);
@@ -179,13 +182,27 @@ test('state exposes browser notification config and independent mute sets', asyn
     apply(ctx, {
       stateFile: join(dir, 'state.json'),
       browserNotifyEnabled: true,
+      browserNotifyReplyPersistent: true,
+      browserNotifyApprovalPersistent: false,
+      browserNotifyQuestionPersistent: false,
       browserNotifyReplyBody: '{session} · {summary}',
       browserNotifyMaxBodyLength: 120,
     });
     let payload = await (await invoke(ctx, ROUTES.state)).json();
     assert.equal(payload.config.browserNotifyEnabled, true);
+    assert.equal(payload.config.browserNotifyReplyPersistent, true);
+    assert.equal(payload.config.browserNotifyApprovalPersistent, false);
+    assert.equal(payload.config.browserNotifyQuestionPersistent, false);
     assert.equal(payload.config.browserNotifyReplyBody, '{session} · {summary}');
     assert.equal(payload.config.browserNotifyMaxBodyLength, 120);
+    const saved = await (await invoke(ctx, ROUTES.config, {
+      browserNotifyReplyPersistent: false,
+      browserNotifyApprovalPersistent: true,
+      browserNotifyQuestionPersistent: false,
+    })).json();
+    assert.equal(saved.config.browserNotifyReplyPersistent, false);
+    assert.equal(saved.config.browserNotifyApprovalPersistent, true);
+    assert.equal(saved.config.browserNotifyQuestionPersistent, false);
     assert.deepEqual(payload.mute.browserWorkspaces, []);
     assert.deepEqual(payload.mute.browserSessions, []);
 

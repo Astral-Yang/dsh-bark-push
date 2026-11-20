@@ -204,6 +204,9 @@ Settings → **通知** 采用顶部 Tab + 工作区的产品化布局。页面�
 | `browserNotifyOnReply` | `true` | 浏览器通知：回复完成 |
 | `browserNotifyOnApproval` | `true` | 浏览器通知：需要批准 |
 | `browserNotifyOnQuestion` | `true` | 浏览器通知：等待选择 |
+| `browserNotifyReplyPersistent` | `false` | 回复通知常驻；关闭时自动消失 |
+| `browserNotifyApprovalPersistent` | `true` | 批准通知常驻；关闭时自动消失 |
+| `browserNotifyQuestionPersistent` | `true` | 选择通知常驻；关闭时自动消失 |
 | `browserNotifySkipForeground` | `true` | 当前会话且页面在前台时不提醒 |
 | `browserNotifyUsePushMutes` | `true` | 复用推送通知的工作区/会话静音；关闭后使用独立浏览器静音集合 |
 | `browserNotifyReplyBody` | `{status} · {summary}` | 回复完成正文模板 |
@@ -297,10 +300,13 @@ channels:
 
 浏览器通知是独立的 Web Notification 通道，默认关闭，不依赖 Bark Device Key 或任何推送渠道。它只在 DSH 页面打开时工作；页面关闭、浏览器退出或移动端 Safari 页面通知请继续使用 Bark。
 
+![浏览器通知停留设置](docs/settings-browser-persistence.png)
+
 特点：
 
 - **独立控制**：`browserNotifyEnabled` 与 Bark 的 `enabled` 分离，三个类型开关也独立于推送通知规则。
 - **前台免打扰**：默认在“当前会话且页面可见、窗口有焦点”时跳过通知；可关闭该开关。
+- **通知停留**：回复完成、需要批准、等待选择三类通知可分别选择「自动消失」或「常驻」；自动消失的具体时长由浏览器和操作系统决定，常驻会保留到手动关闭（部分平台仍可能按系统通知策略收起）。
 - **正文模板**：三个类型分别支持 `{status}`、`{session}`、`{summary}`、`{turn}`、`{tool}`、`{reason}`、`{question}`、`{questionCount}`、`{description}` 占位符；未知占位符原样保留，空模板回退默认值。
 - **短内容**：正文只包含状态和短描述，不发送完整回复正文、工具参数、命令或图片。
 - **静音策略**：默认复用推送通知的工作区/会话静音；关闭 `browserNotifyUsePushMutes` 后使用独立的浏览器静音集合，可在设置页单独管理。
