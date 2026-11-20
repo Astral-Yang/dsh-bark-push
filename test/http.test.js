@@ -10,9 +10,10 @@ import { createBarkServer, createFakeCtx, createLogger, tempDir } from './helper
 const KEY = 'TEST_DEVICE_KEY_1234567890';
 
 async function invoke(ctx, path, body, headers = {}) {
-  const route = ctx.routes.find((entry) => entry.path === path);
+  const url = new URL(`http://localhost${path}`);
+  const route = ctx.routes.find((entry) => entry.path === url.pathname);
   assert.ok(route, `route ${path}`);
-  const request = new Request(`http://localhost${path}`, {
+  const request = new Request(url, {
     method: body === undefined ? 'GET' : 'POST',
     headers:
       body === undefined
@@ -170,6 +171,35 @@ test('serves the management page with a restrictive CSP', async () => {
     assert.equal(html.includes('紧急通知（critical）'), true);
     assert.equal(html.includes('volume'), true);
     assert.equal(html.includes('id="levelNormal"'), false);
+  } finally {
+    await cleanup();
+  }
+});
+
+test('catalog=0 keeps the startup state lightweight without session summaries', async () => {
+  const { dir, cleanup } = await tempDir();
+  try {
+    const ctx = createFakeCtx({
+      workspaces: [{ id: 'ws-1', title: '项目一', path: '/work/a', sessionIds: ['s1'] }],
+    });
+    let listCalls = 0;
+    ctx.sessionController = {
+      list: async () => {
+        listCalls += 1;
+        return { items: [{ id: 's1', title: '会话一', cwd: '/work/a', blank: false, origin: 'main' }] };
+      },
+    };
+    apply(ctx, { stateFile: join(dir, 'state.json') });
+    const full = await (await invoke(ctx, ROUTES.state)).json();
+    assert.equal(full.catalog.sessions.length, 1);
+    assert.equal(listCalls, 1);
+
+    const light = await (await invoke(ctx, ROUTES.state + '?catalog=0')).json();
+    assert.equal(light.ok, true);
+    assert.deepEqual(light.catalog.sessions, []);
+    assert.equal(light.catalog.workspaces[0].id, 'ws-1');
+    assert.equal(light.catalog.sessionWorkspace.s1, 'ws-1');
+    assert.equal(listCalls, 1);
   } finally {
     await cleanup();
   }

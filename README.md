@@ -305,6 +305,7 @@ channels:
 特点：
 
 - **独立控制**：`browserNotifyEnabled` 与 Bark 的 `enabled` 分离，三个类型开关也独立于推送通知规则。
+- **启动轻量**：客户端启动只读取轻量状态；只有浏览器通知开启时才建立 `/browser-events` SSE，关闭后主动断开。SSE 每 10 秒发送一次心跳，不参与通知事件延迟。
 - **前台免打扰**：默认在“当前会话且页面可见、窗口有焦点”时跳过通知；可关闭该开关。
 - **通知停留**：回复完成、需要批准、等待选择三类通知可分别选择「自动消失」或「常驻」；自动消失的具体时长由浏览器和操作系统决定，常驻会保留到手动关闭（部分平台仍可能按系统通知策略收起）。
 - **正文模板**：三个类型分别支持 `{status}`、`{session}`、`{summary}`、`{turn}`、`{tool}`、`{reason}`、`{question}`、`{questionCount}`、`{description}` 占位符；未知占位符原样保留，空模板回退默认值。
@@ -423,14 +424,17 @@ curl -X POST 'https://api.day.app/push' \
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
-| `GET` | `/api/bark-push/state` | 配置（脱敏）、静音、工作区/会话目录、上次测试/投递 |
+| `GET` | `/api/bark-push/state` | 完整状态：配置（脱敏）、静音、工作区/会话目录、上次测试/投递 |
+| `GET` | `/api/bark-push/state?catalog=0` | 轻量启动状态：配置、静音和 workspace 索引，不扫描完整 Session 列表 |
 | `GET` | `/api/bark-push/ui` | 管理页 HTML |
 | `POST` | `/api/bark-push/config` | 保存配置；支持 `addDeviceKeys`、`deviceKeys`、`clearDeviceKeys`、`reset` |
 | `POST` | `/api/bark-push/mute` | `{kind:'workspace'|'session', id, muted}` |
-| `POST` | `/api/bark-push/toggle` | `{kind, id, channel?: 'push'| 'browser'}` 原子切换 |
+| `POST` | `/api/bark-push/toggle` | `{kind, id, channel?: 'push'| 'browser'}` 原子切换；客户端使用 `?catalog=0` |
 | `POST` | `/api/bark-push/test` | 测试推送（Bark + 所有已启用渠道） |
 | `POST` | `/api/bark-push/test-channel` | `{id}` 只测试一个额外渠道 |
 | `GET` | `/api/bark-push/browser-events` | 浏览器通知 SSE 事件流（`text/event-stream`） |
+
+客户端启动和静音切换只请求轻量状态；完整 catalog 只由管理页加载，避免为普通网页加载重复扫描 DSH Session 持久化目录。
 
 POST 需要 `x-dsh-bark-action: 1` 和 `content-type: application/json`，作为 DSH Host/Origin 检查之外的第二道同源栅栏。
 

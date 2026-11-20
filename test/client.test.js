@@ -19,6 +19,7 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
   const history = [];
   const notifications = [];
   const eventSources = [];
+  const fetches = [];
   let loaded = null;
 
   function NotificationCtor(title, options) {
@@ -71,7 +72,10 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
     Error,
     Notification: NotificationCtor,
     EventSource: EventSourceCtor,
-    fetch: async () => ({ ok: true, status: 200, json: async () => state }),
+    fetch: async (url) => {
+      fetches.push(String(url));
+      return { ok: true, status: 200, json: async () => state };
+    },
     setTimeout: (fn, ms) => {
       if (ms < 1000) fn();
       return 1;
@@ -168,7 +172,7 @@ async function loadClient({ href = 'https://dsh.example/', state = { ok: true, m
   }
   exports.apply(ctx);
   await new Promise((resolve) => setTimeout(resolve, 10));
-  return { exports, registrations, menus, opened, history, ctx, notifications, eventSources };
+  return { exports, registrations, menus, opened, history, ctx, notifications, eventSources, fetches };
 }
 
 test('registers the Settings section plus the relocated Session mute surfaces', async () => {
@@ -331,6 +335,25 @@ test('maps workspaces from the catalog map and from a Session cwd fallback', asy
   });
   const inferred = mark.component({ sessionId: 's11', t: (key) => key });
   assert.equal(inferred.props['aria-label'], 'mutedWorkspace');
+});
+
+test('uses one lightweight state request at startup and gates the SSE stream', async () => {
+  const bundle = await loadClient({ sessions: [], notificationPermission: 'granted' });
+  assert.deepEqual(bundle.fetches, ['/api/bark-push/state?catalog=0']);
+  assert.equal(bundle.eventSources.length, 0);
+
+  const internals = bundle.exports.__internals;
+  internals.adopt({
+    config: { browserNotifyEnabled: true },
+    mute: { workspaces: [], sessions: [] },
+  });
+  assert.equal(bundle.eventSources.length, 1);
+
+  internals.adopt({
+    config: { browserNotifyEnabled: false },
+    mute: { workspaces: [], sessions: [] },
+  });
+  assert.equal(bundle.eventSources[0].closed, true);
 });
 
 test('shows a browser notification, skips the current foreground session, and opens on click', async () => {

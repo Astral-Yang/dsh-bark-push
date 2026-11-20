@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- 优化 Web 页面加载：客户端启动改用轻量 `/state?catalog=0`，只返回配置、静音和 workspace 索引，不再为普通页面加载构建完整 Session catalog；完整目录仍由设置页按需加载。
+- 客户端启动 `/state` 请求改为 single-flight，并将启动重试从 5 次缩减为 2 次；首次请求较慢时不再并发重复扫描 Session 列表。
+- 浏览器通知 SSE 改为按需建立：只有 `browserNotifyEnabled=true` 时才连接 `/browser-events`，关闭后主动断开并释放 leader lock。
+- 将 `/browser-events` 心跳从 20 秒缩短为 10 秒，降低反向代理在 20 秒空闲边界缓冲或断流的概率；SSE 本身仍是长连接，事件推送不等待心跳。
+- `/toggle?catalog=0` 供客户端静音切换使用，避免一次静音操作重新构建完整 Session catalog。测试：106 / 106 通过。
+
 ## 0.3.1 — 2026-11-20
 
 - 浏览器通知支持按类型设置「通知停留」：回复完成、需要批准、等待选择可分别选择自动消失或常驻；默认保持回复自动消失、审批与选择常驻。自动消失时长由浏览器/系统决定，常驻保留到手动关闭。

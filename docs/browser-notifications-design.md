@@ -287,9 +287,9 @@ GET /api/bark-push/browser-events
 - 通过 `ctx.connection.fetch.register()` 注册，复用现有 Cookie 认证、Host/Origin 检查和 owner Peer 限制。
 - 响应头：
   - `Content-Type: text/event-stream; charset=utf-8`
-  - `Cache-Control: no-cache`
+  - `Cache-Control: no-cache, no-transform`
   - `X-Accel-Buffering: no`
-- 心跳：每 20 秒发送 `: heartbeat\n\n`。
+- 心跳：每 10 秒发送 `: heartbeat\n\n`。
 - 事件名：`browser-notify`。
 - 事件 ID：单调递增整数，用于重连。
 - 数据示例：
@@ -570,7 +570,7 @@ Settings → 通知（独立入口），顶部 Tab + 工作区：
 
 - 浏览器通知不进入 Bark 的串行队列，不占用推送重试预算。
 - `BrowserNotifyHub` 使用内存环形缓冲；没有订阅者时直接丢弃事件。
-- SSE 心跳每 20 秒；单浏览器通常只有一个连接。
+- SSE 心跳每 10 秒；单浏览器通常只有一个连接。
 - 模板渲染只在 Host 事件发生时做一次，不影响会话主流程。
 
 ### 9.4 失败处理
