@@ -216,6 +216,20 @@ test('registers the Settings section plus the relocated Session mute surfaces', 
   const headerButton = header.component({ sessionId: 's1', t: (key) => key });
   assert.equal(headerButton.type, 'button');
   assert.equal(headerButton.props['aria-label'], 'unmute');
+  assert.equal(headerButton.props.className, 'bark-headerMute');
+  // Keep opacity off the button: the theme fades header utilities through the
+  // button's opacity, and an inline value would win over the theme's rule.
+  assert.equal(headerButton.props.style, undefined);
+  assert.equal(headerButton.children[0].props.style, undefined);
+
+  const plainBundle = await loadClient({
+    state: { ok: true, mute: { workspaces: [], sessions: [] } },
+  });
+  const plainHeader = plainBundle.registrations.find((entry) => entry.options?.name === 'conversation.session.header.utilities');
+  const plainButton = plainHeader.component({ sessionId: 's1', t: (key) => key });
+  assert.equal(plainButton.props['aria-label'], 'mute');
+  assert.equal(plainButton.props.className, 'bark-headerMute');
+  assert.equal(plainButton.props.style, undefined);
 
   const navIcon = bundle.registrations.find((entry) => entry.options?.name === 'settings.section.icon');
   assert.equal(navIcon.options.id, 'bark-push');
@@ -224,6 +238,19 @@ test('registers the Settings section plus the relocated Session mute surfaces', 
   const iframe = element.children.find((child) => child && child.type === 'iframe');
   assert.equal(iframe.props.src, '/api/bark-push/ui?embed=1');
   assert.equal(element.children.some((child) => child && child.type === 'a'), false);
+});
+
+test('wraps the Session-header mute control in the host Tooltip when available', async () => {
+  const Tooltip = (props) => ({ type: 'host-tooltip', props });
+  const bundle = await loadClient({ primitives: { Tooltip } });
+  const header = bundle.registrations.find((entry) => entry.options?.name === 'conversation.session.header.utilities');
+  const node = header.component({ sessionId: 's1', t: (key) => key });
+  assert.equal(node.type, Tooltip);
+  assert.equal(node.props.label, 'unmute');
+  assert.equal(node.props.side, 'bottom');
+  assert.equal(node.children[0].props['aria-label'], 'unmute');
+  assert.equal(node.children[0].props.className, 'bark-headerMute');
+  assert.equal(node.children[0].props.title, undefined);
 });
 
 test('bundles both bell glyphs for the mute control', async () => {

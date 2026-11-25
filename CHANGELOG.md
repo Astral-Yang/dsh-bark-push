@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4 — 2026-11-25
+
+- 修复会话头部静音铃铛：颜色与宿主图标一致，补齐 hover 背景、焦点态与宿主 Tooltip 提示；按钮不再写内联透明度，避免覆盖主题对 `data-dsh-header-utility-fade` 的自动隐藏规则。测试：110 / 110 通过。
+
 ## 0.3.3 — 2026-11-20
 
 - `publicBaseUrl` 支持 `shortcuts://` 作为 iOS 快捷指令桥接：快捷指令用「打开 URL」打开 `webapp://...`，Bark 点击 `shortcuts://run-shortcut?...` 间接唤起 WebApp；该链接不附加 `barkSession`。
